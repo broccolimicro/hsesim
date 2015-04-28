@@ -1,0 +1,8 @@
+L.e+,L.f-,L.t-,R.e+,R.f-,R.t-;
+(*[
+	[	R.e & L.t -> R.t+ 
+	[]	R.e & L.f -> R.f+
+	]; L.e-; [~R.e]; R.t-, R.f-; [~L.t & ~L.f]; L.e+
+] ||
+*[[R.t | R.f]; R.e-; [~R.t & ~R.f]; R.e+] ||
+*[[1->L.t+:1->L.f+]; [~L.e]; L.t-,L.f-; [L.e]])
