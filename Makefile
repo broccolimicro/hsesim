@@ -7,7 +7,7 @@ CC				= gcc
 CFLAGS			= -O2 -g -fmessage-length=0
 INCLUDE_PATHS	= -I../../lib/common -I../../lib/parse -I../../lib/parse_boolean -I../../lib/parse_dot -I../../lib/parse_hse -I../../lib/boolean -I../../lib/hse -I../../lib/interpret_boolean -I../../lib/interpret_hse -I../../lib/interpret_dot
 LIBRARY_PATHS	= -LC:\MinGW\bin -L../../lib/common -L../../lib/parse -L../../lib/parse_boolean -L../../lib/parse_dot -L../../lib/parse_hse -L../../lib/boolean -L../../lib/hse -L../../lib/interpret_boolean -L../../lib/interpret_hse -L../../lib/interpret_dot
-LIBRARIES		= -linterpret_dot -linterpret_hse -linterpret_boolean -lhse -lboolean -lparse_hse -lparse_dot -lparse_boolean -lparse -lcommon -lcgraph -lgvc
+LIBRARIES		= -linterpret_dot -linterpret_hse -linterpret_boolean -lhse -lboolean -lparse_hse -lparse_dot -lparse_boolean -lparse -lcommon
 TARGET			= hsesim
 
 all: build $(TARGET)
