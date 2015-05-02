@@ -50,7 +50,7 @@ void print_command_help()
 	printf("  source <file>       source and execute a list of commands from a file\n");
 	printf("  save <file>         save the sequence of fired transitions to a file\n");
 	printf("  load <file>         load a sequence of transitions from a file\n");
-	printf("  unload              return to random stepping");
+	printf("  unload              return to random stepping\n");
 	printf("  quit, q             exit the interactive simulation environment\n");
 	printf("\n== Running Simulation ==\n");
 	printf("  tokens, t           list the location and state information of every token\n");
