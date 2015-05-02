@@ -12,6 +12,7 @@
 #include <hse/simulator.h>
 #include <interpret_hse/import.h>
 #include <interpret_dot/export.h>
+#include <interpret_dot/import.h>
 #include <interpret_boolean/export.h>
 #include <interpret_boolean/import.h>
 #include <boolean/variable.h>
@@ -20,13 +21,16 @@ void print_help()
 {
 	printf("Usage: hsesim [options] file...\n");
 	printf("A simulation environment for HSE processes.\n");
-	printf("Options:\n");
+	printf("\nSupported file formats:\n");
+	printf(" *.hse           Load an HSE\n");
+	printf(" *.dot           Load any place-transition graph\n");
+	printf(" *.sim           Load a sequence of transitions to operate on\n");
+	printf("\nGeneral Options:\n");
 	printf(" -h,--help      Display this information\n");
 	printf("    --version   Display version information\n");
 	printf(" -v,--verbose   Display verbose messages\n");
 	printf(" -d,--debug     Display internal debugging messages\n");
-	printf("\n");
-	printf("The following flags implement any graph conversion that requires simulation of some kind. If none of these flags are set, then an interactive simulation environment is executed.\n");
+	printf("\nConversion Options:\n");
 	printf(" -g <file>      Convert this HSE to an hse-graph and save it to a file\n");
 	printf(" -eg <file>     Convert this HSE to an elaborated hse-graph and save it to a file\n");
 	printf(" -pn <file>     Convert this HSE to a petri-net and save it to a file\n");
@@ -44,27 +48,27 @@ void print_version()
 void print_command_help()
 {
 	printf("<arg> specifies a required argument\n(arg=value) specifies an optional argument with a default value\n");
-	printf("\n== General ==\n");
-	printf("  help, h             print this message\n");
-	printf("  seed <n>            set the random seed for the simulation\n");
-	printf("  source <file>       source and execute a list of commands from a file\n");
-	printf("  save <file>         save the sequence of fired transitions to a file\n");
-	printf("  load <file>         load a sequence of transitions from a file\n");
-	printf("  unload              return to random stepping\n");
-	printf("  quit, q             exit the interactive simulation environment\n");
-	printf("\n== Running Simulation ==\n");
-	printf("  tokens, t           list the location and state information of every token\n");
-	printf("  enabled, e          return the list of enabled transitions\n");
-	printf("  fire <i>, f<i>      fire the i'th enabled transition\n");
-	printf("  step (N=1), s(N=1)  step through N transitions (random unless a sequence is loaded)\n");
-	printf("  reset, r            reset the simulator to the initial marking and re-seed\n");
-	printf("\n== Setting/Viewing State ==\n");
-	printf("  set <i> <expr>      execute a transition as if it were local to the i'th token\n");
-	printf("  set <expr>          execute a transition as if it were remote to all tokens\n");
-	printf("  force <expr>        execute a transition as if it were local to all tokens\n");
+	printf("\nGeneral:\n");
+	printf(" help, h             print this message\n");
+	printf(" seed <n>            set the random seed for the simulation\n");
+	printf(" source <file>       source and execute a list of commands from a file\n");
+	printf(" save <file>         save the sequence of fired transitions to a '.sim' file\n");
+	printf(" load <file>         load a sequence of transitions from a '.sim' file\n");
+	printf(" clear, c            clear any stored sequence and return to random stepping\n");
+	printf(" quit, q             exit the interactive simulation environment\n");
+	printf("\nRunning Simulation:\n");
+	printf(" tokens, t           list the location and state information of every token\n");
+	printf(" enabled, e          return the list of enabled transitions\n");
+	printf(" fire <i>, f<i>      fire the i'th enabled transition\n");
+	printf(" step (N=1), s(N=1)  step through N transitions (random unless a sequence is loaded)\n");
+	printf(" reset, r            reset the simulator to the initial marking and re-seed (does not clear)\n");
+	printf("\nSetting/Viewing State:\n");
+	printf(" set <i> <expr>      execute a transition as if it were local to the i'th token\n");
+	printf(" set <expr>          execute a transition as if it were remote to all tokens\n");
+	printf(" force <expr>        execute a transition as if it were local to all tokens\n");
 }
 
-void real_time(hse::graph &g, boolean::variable_set &v)
+void real_time(hse::graph &g, boolean::variable_set &v, vector<pair<int, int> > steps = vector<pair<int, int> >())
 {
 	hse::simulator sim(&g);
 
@@ -74,7 +78,6 @@ void real_time(hse::graph &g, boolean::variable_set &v)
 	int seed = 0;
 	srand(seed);
 	int enabled = sim.enabled();
-	vector<pair<int, int> > steps;
 	int step = 0;
 	int n = 0, n1 = 0;
 	char command[256];
@@ -105,7 +108,7 @@ void real_time(hse::graph &g, boolean::variable_set &v)
 			else
 				printf("error: expected seed value\n");
 		}
-		else if (strncmp(command, "unload", 6) == 0 && length == 6)
+		else if ((strncmp(command, "clear", 6) == 0 && length == 6) || (strncmp(command, "c", 1) == 0 && length == 1))
 			steps.resize(step);
 		else if (strncmp(command, "source", 6) == 0 && length > 7)
 		{
@@ -128,6 +131,8 @@ void real_time(hse::graph &g, boolean::variable_set &v)
 				}
 				fclose(seq);
 			}
+			else
+				printf("error: file not found '%s'\n", &command[5]);
 		}
 		else if (strncmp(command, "save", 4) == 0 && length > 5)
 		{
@@ -161,17 +166,24 @@ void real_time(hse::graph &g, boolean::variable_set &v)
 				else
 					printf("(%d) T%d.%d:[%s]     ", i, sim.local.ready[i].index, sim.local.ready[i].term, export_conjunction(g.transitions[sim.local.ready[i].index].action[sim.local.ready[i].term], v).to_string().c_str());
 			}
-			cout << endl;
+			printf("\n");
 		}
 		else if (strncmp(command, "set", 3) == 0)
 		{
+			int i = 0;
 			if (sscanf(command, "set %d ", &n) != 1)
+			{
 				n = -1;
+				i = 4;
+			}
+			else
+			{
+				i = 5;
+				while (i < length && command[i-1] != ' ')
+					i++;
+			}
 
-			int i = 3;
-			for (; i < length && n != -1 && command[i] != ' '; i++);
-
-			conjunction_parser.insert("", string(command).substr(i+1));
+			conjunction_parser.insert("", string(command).substr(i));
 			parse_boolean::internal_parallel expr(conjunction_parser);
 			boolean::cube action = import_cube(conjunction_parser, expr, v, false);
 			if (conjunction_parser.is_clean())
@@ -216,7 +228,7 @@ void real_time(hse::graph &g, boolean::variable_set &v)
 
 					if (firing == (int)sim.local.ready.size())
 					{
-						printf("error: loaded simulation does not match HSE, please unload the simulation to continue\n");
+						printf("error: loaded simulation does not match HSE, please clear the simulation to continue\n");
 						break;
 					}
 				}
@@ -239,7 +251,7 @@ void real_time(hse::graph &g, boolean::variable_set &v)
 				if (n < enabled)
 				{
 					if (step < (int)steps.size())
-						printf("error: deviating from loaded simulation, please unload the simulation to continue\n");
+						printf("error: deviating from loaded simulation, please clear the simulation to continue\n");
 					else
 					{
 						steps.push_back(pair<int, int>(sim.local.ready[n].index, sim.local.ready[n].term));
@@ -269,20 +281,29 @@ int main(int argc, char **argv)
 {
 	configuration config;
 	config.set_working_directory(argv[0]);
-	tokenizer tokens;
-	parse_hse::parallel::register_syntax(tokens);
+	tokenizer hse_tokens;
+	tokenizer dot_tokens;
+	parse_hse::parallel::register_syntax(hse_tokens);
+	parse_dot::graph::register_syntax(dot_tokens);
 	string sgfilename = "";
 	string pnfilename = "";
 	string egfilename = "";
 	string gfilename = "";
+	vector<pair<int, int> > steps;
 
 	for (int i = 1; i < argc; i++)
 	{
 		string arg = argv[i];
 		if (arg == "--help" || arg == "-h")			// Help
+		{
 			print_help();
+			return 0;
+		}
 		else if (arg == "--version")	// Version Information
+		{
 			print_version();
+			return 0;
+		}
 		else if (arg == "--verbose" || arg == "-v")
 			set_verbose(true);
 		else if (arg == "--debug" || arg == "-d")
@@ -332,55 +353,102 @@ int main(int argc, char **argv)
 			}
 		}
 		else
-			config.load(tokens, argv[i], "");
+		{
+			string filename = argv[i];
+			int dot = filename.find_last_of(".");
+			string format = "";
+			if (dot != string::npos)
+				format = filename.substr(dot+1);
+			if (format == "hse")
+				config.load(hse_tokens, filename, "");
+			else if (format == "dot")
+				config.load(dot_tokens, filename, "");
+			else if (format == "sim")
+			{
+				FILE *seq = fopen(argv[i], "r");
+				char command[256];
+				int n, n1;
+				if (seq != NULL)
+				{
+					while (fgets(command, 255, seq) != NULL)
+					{
+						if (sscanf(command, "%d.%d", &n, &n1) == 2)
+							steps.push_back(pair<int, int>(n, n1));
+					}
+					fclose(seq);
+				}
+				else
+					printf("error: file not found '%s'\n", argv[i]);
+			}
+			else
+				printf("unrecognized file format '%s'\n", format.c_str());
+		}
 	}
 
-	if (is_clean() && tokens.segments.size() > 0)
+	if (is_clean() && hse_tokens.segments.size() > 0)
 	{
-		parse_hse::parallel syntax(tokens);
-
+		hse::graph g;
 		boolean::variable_set v;
-		hse::graph g = import_graph(tokens, syntax, v, true);
+
+		hse_tokens.increment(false);
+		hse_tokens.expect<parse_hse::parallel>();
+		while (hse_tokens.decrement(__FILE__, __LINE__))
+		{
+			parse_hse::parallel syntax(hse_tokens);
+			g.merge(import_graph(hse_tokens, syntax, v, true));
+
+			hse_tokens.increment(false);
+			hse_tokens.expect<parse_hse::parallel>();
+		}
+
+		dot_tokens.increment(false);
+		dot_tokens.expect<parse_dot::graph>();
+		while (dot_tokens.decrement(__FILE__, __LINE__))
+		{
+			parse_dot::graph syntax(dot_tokens);
+			g.merge(import_graph(dot_tokens, syntax, v, true));
+
+			dot_tokens.increment(false);
+			dot_tokens.expect<parse_dot::graph>();
+		}
 		g.compact();
 
 		if (gfilename != "")
 		{
-			g.elaborate();
-
-			ofstream s(gfilename.c_str());
-			s << export_graph(g, v, false).to_string();
-			s.close();
+			FILE *fout = fopen(gfilename.c_str(), "w");
+			fprintf(fout, "%s", export_graph(g, v, false).to_string().c_str());
+			fclose(fout);
 		}
 
 		if (egfilename != "")
 		{
 			g.elaborate();
 
-			ofstream s(egfilename.c_str());
-			s << export_graph(g, v).to_string();
-			s.close();
+			FILE *fout = fopen(egfilename.c_str(), "w");
+			fprintf(fout, "%s", export_graph(g, v).to_string().c_str());
+			fclose(fout);
 		}
 
 		if (pnfilename != "")
 		{
 			hse::graph pn = g.to_petri_net();
 
-			ofstream s(pnfilename.c_str());
-			s << export_graph(pn, v).to_string();
-			s.close();
+			FILE *fout = fopen(pnfilename.c_str(), "w");
+			fprintf(fout, "%s", export_graph(pn, v).to_string().c_str());
+			fclose(fout);
 		}
 
 		if (sgfilename != "")
 		{
 			hse::graph sg = g.to_state_graph();
 
-			ofstream s(sgfilename.c_str());
-			s << export_graph(sg, v).to_string();
-			s.close();
+			FILE *fout = fopen(sgfilename.c_str(), "w");
+			fprintf(fout, "%s", export_graph(sg, v).to_string().c_str());
+			fclose(fout);
 		}
 
 		if (sgfilename == "" && pnfilename == "" && egfilename == "" && gfilename == "")
-			real_time(g, v);
+			real_time(g, v, steps);
 	}
 
 	complete();
