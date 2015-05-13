@@ -61,23 +61,24 @@ void print_command_help()
 	printf(" enabled, e          return the list of enabled transitions\n");
 	printf(" fire <i>, f<i>      fire the i'th enabled transition\n");
 	printf(" step (N=1), s(N=1)  step through N transitions (random unless a sequence is loaded)\n");
-	printf(" reset, r            reset the simulator to the initial marking and re-seed (does not clear)\n");
+	printf(" reset (i), r(i)     reset the simulator to the initial marking and re-seed (does not clear)\n");
 	printf("\nSetting/Viewing State:\n");
 	printf(" set <i> <expr>      execute a transition as if it were local to the i'th token\n");
 	printf(" set <expr>          execute a transition as if it were remote to all tokens\n");
 	printf(" force <expr>        execute a transition as if it were local to all tokens\n");
 }
 
-void real_time(hse::graph &g, boolean::variable_set &v, vector<pair<int, int> > steps = vector<pair<int, int> >())
+void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> steps = vector<hse::term_index>())
 {
-	hse::simulator sim(&g);
+	hse::simulator sim;
+	sim.base = &g;
 
 	tokenizer conjunction_parser(false);
 	parse_boolean::internal_parallel::register_syntax(conjunction_parser);
 
 	int seed = 0;
 	srand(seed);
-	int enabled = sim.enabled();
+	int enabled = 0;
 	int step = 0;
 	int n = 0, n1 = 0;
 	char command[256];
@@ -108,7 +109,7 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<pair<int, int> > 
 			else
 				printf("error: expected seed value\n");
 		}
-		else if ((strncmp(command, "clear", 6) == 0 && length == 6) || (strncmp(command, "c", 1) == 0 && length == 1))
+		else if ((strncmp(command, "clear", 5) == 0 && length == 5) || (strncmp(command, "c", 1) == 0 && length == 1))
 			steps.resize(step);
 		else if (strncmp(command, "source", 6) == 0 && length > 7)
 		{
@@ -127,7 +128,7 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<pair<int, int> > 
 				while (fgets(command, 255, seq) != NULL)
 				{
 					if (sscanf(command, "%d.%d", &n, &n1) == 2)
-						steps.push_back(pair<int, int>(n, n1));
+						steps.push_back(hse::term_index(n, n1));
 				}
 				fclose(seq);
 			}
@@ -140,31 +141,49 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<pair<int, int> > 
 			if (seq != NULL)
 			{
 				for (int i = 0; i < (int)steps.size(); i++)
-					fprintf(seq, "%d.%d\n", steps[i].first, steps[i].second);
+					fprintf(seq, "%d.%d\n", steps[i].index, steps[i].term);
 				fclose(seq);
 			}
 		}
-		else if ((strncmp(command, "reset", 5) == 0 && length == 5) || (strncmp(command, "r", 1) == 0 && length == 1))
+		else if (strncmp(command, "reset", 5) == 0 || strncmp(command, "r", 1) == 0)
 		{
-			sim = hse::simulator(&g);
-			enabled = sim.enabled();
-			step = 0;
-			srand(seed);
+			if (sscanf(command, "reset %d", &n) == 1 || sscanf(command, "r%d", &n) == 1)
+			{
+				sim = hse::simulator(&g, n);
+				enabled = sim.enabled();
+				step = 0;
+				srand(seed);
+			}
+			else
+			{
+				for (int i = 0; i < (int)g.source.size(); i++)
+				{
+					printf("(%d) {", i);
+					for (int j = 0; j < (int)g.source[i].size(); j++)
+					{
+						if (j != 0)
+							printf(" ");
+						printf("\tP%d:%s\n", g.source[i][j].index, export_conjunction(g.source[i][j].state, v).to_string().c_str());
+					}
+					printf("}\n");
+				}
+			}
 		}
 		else if ((strncmp(command, "tokens", 6) == 0 && length == 6) || (strncmp(command, "t", 1) == 0 && length == 1))
 		{
-			for (int i = 0; i < sim.local.tokens.size(); i++)
-				printf("(%d) P%d:%s     ", i, sim.local.tokens[i].index, export_conjunction(sim.local.tokens[i].state, v).to_string().c_str());
-			printf("\n");
+			printf("%s {\n", export_conjunction(sim.global, v).to_string().c_str());
+			for (int i = 0; i < sim.tokens.size(); i++)
+				printf("\t(%d) P%d:%s\n", i, sim.tokens[i].index, export_conjunction(sim.tokens[i].state, v).to_string().c_str());
+			printf("}\n");
 		}
 		else if ((strncmp(command, "enabled", 7) == 0 && length == 7) || (strncmp(command, "e", 1) == 0 && length == 1))
 		{
 			for (int i = 0; i < enabled; i++)
 			{
-				if (g.transitions[sim.local.ready[i].index].behavior == hse::transition::active)
-					printf("(%d) T%d.%d:%s     ", i, sim.local.ready[i].index, sim.local.ready[i].term, export_internal_parallel(g.transitions[sim.local.ready[i].index].action[sim.local.ready[i].term], v).to_string().c_str());
+				if (g.transitions[sim.ready[i].index].behavior == hse::transition::active)
+					printf("(%d) T%d.%d:%s     ", i, sim.ready[i].index, sim.ready[i].term, export_internal_parallel(g.transitions[sim.ready[i].index].action[sim.ready[i].term], v).to_string().c_str());
 				else
-					printf("(%d) T%d.%d:[%s]     ", i, sim.local.ready[i].index, sim.local.ready[i].term, export_conjunction(g.transitions[sim.local.ready[i].index].action[sim.local.ready[i].term], v).to_string().c_str());
+					printf("(%d) T%d.%d:[%s]     ", i, sim.ready[i].index, sim.ready[i].term, export_conjunction(g.transitions[sim.ready[i].index].action[sim.ready[i].term], v).to_string().c_str());
 			}
 			printf("\n");
 		}
@@ -187,12 +206,12 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<pair<int, int> > 
 			parse_boolean::internal_parallel expr(conjunction_parser);
 			boolean::cube action = import_cube(conjunction_parser, expr, v, false);
 			if (conjunction_parser.is_clean())
-				for (int i = 0; i < (int)sim.local.tokens.size(); i++)
+				for (int i = 0; i < (int)sim.tokens.size(); i++)
 				{
 					if (i == n)
-						sim.local.tokens[i].state = boolean::local_transition(sim.local.tokens[i].state, action);
+						sim.tokens[i].state = boolean::local_transition(sim.tokens[i].state, action);
 					else
-						sim.local.tokens[i].state = boolean::remote_transition(sim.local.tokens[i].state, action);
+						sim.tokens[i].state = boolean::remote_transition(sim.tokens[i].state, action);
 				}
 			conjunction_parser.reset();
 			enabled = sim.enabled();
@@ -207,8 +226,8 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<pair<int, int> > 
 				parse_boolean::internal_parallel expr(conjunction_parser);
 				boolean::cube action = import_cube(conjunction_parser, expr, v, false);
 				if (conjunction_parser.is_clean())
-					for (int i = 0; i < (int)sim.local.tokens.size(); i++)
-						sim.local.tokens[i].state = boolean::local_transition(sim.local.tokens[i].state, action);
+					for (int i = 0; i < (int)sim.tokens.size(); i++)
+						sim.tokens[i].state = boolean::local_transition(sim.tokens[i].state, action);
 				conjunction_parser.reset();
 				enabled = sim.enabled();
 			}
@@ -223,22 +242,22 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<pair<int, int> > 
 				int firing = rand()%enabled;
 				if (step < (int)steps.size())
 				{
-					for (firing = 0; firing < (int)sim.local.ready.size() &&
-					(sim.local.ready[firing].index != steps[step].first || sim.local.ready[firing].term != steps[step].second); firing++);
+					for (firing = 0; firing < (int)sim.ready.size() &&
+					(sim.ready[firing].index != steps[step].index || sim.ready[firing].term != steps[step].term); firing++);
 
-					if (firing == (int)sim.local.ready.size())
+					if (firing == (int)sim.ready.size())
 					{
 						printf("error: loaded simulation does not match HSE, please clear the simulation to continue\n");
 						break;
 					}
 				}
 				else
-					steps.push_back(pair<int, int>(sim.local.ready[firing].index, sim.local.ready[firing].term));
+					steps.push_back(hse::term_index(sim.ready[firing].index, sim.ready[firing].term));
 
-				if (g.transitions[sim.local.ready[firing].index].behavior == hse::transition::active)
-					printf("%d\tT%d.%d:%s\n", step, sim.local.ready[firing].index, sim.local.ready[firing].term, export_disjunction(g.transitions[sim.local.ready[firing].index].action[sim.local.ready[firing].term], v).to_string().c_str());
-				else if (g.transitions[sim.local.ready[firing].index].behavior == hse::transition::passive)
-					printf("%d\tT%d.%d:[%s]\n", step, sim.local.ready[firing].index, sim.local.ready[firing].term, export_disjunction(g.transitions[sim.local.ready[firing].index].action[sim.local.ready[firing].term], v).to_string().c_str());
+				if (g.transitions[sim.ready[firing].index].behavior == hse::transition::active)
+					printf("%d\tT%d.%d:%s\n", step, sim.ready[firing].index, sim.ready[firing].term, export_disjunction(g.transitions[sim.ready[firing].index].action[sim.ready[firing].term], v).to_string().c_str());
+				else if (g.transitions[sim.ready[firing].index].behavior == hse::transition::passive)
+					printf("%d\tT%d.%d:[%s]\n", step, sim.ready[firing].index, sim.ready[firing].term, export_disjunction(g.transitions[sim.ready[firing].index].action[sim.ready[firing].term], v).to_string().c_str());
 				sim.fire(firing);
 				enabled = sim.enabled();
 				step++;
@@ -254,12 +273,12 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<pair<int, int> > 
 						printf("error: deviating from loaded simulation, please clear the simulation to continue\n");
 					else
 					{
-						steps.push_back(pair<int, int>(sim.local.ready[n].index, sim.local.ready[n].term));
+						steps.push_back(hse::term_index(sim.ready[n].index, sim.ready[n].term));
 
-						if (g.transitions[sim.local.ready[n].index].behavior == hse::transition::active)
-							printf("%d\tT%d.%d:%s\n", step, sim.local.ready[n].index, sim.local.ready[n].term, export_disjunction(g.transitions[sim.local.ready[n].index].action[sim.local.ready[n].term], v).to_string().c_str());
-						else if (g.transitions[sim.local.ready[n].index].behavior == hse::transition::passive)
-							printf("%d\tT%d.%d:[%s]\n", step, sim.local.ready[n].index, sim.local.ready[n].term, export_disjunction(g.transitions[sim.local.ready[n].index].action[sim.local.ready[n].term], v).to_string().c_str());
+						if (g.transitions[sim.ready[n].index].behavior == hse::transition::active)
+							printf("%d\tT%d.%d:%s\n", step, sim.ready[n].index, sim.ready[n].term, export_disjunction(g.transitions[sim.ready[n].index].action[sim.ready[n].term], v).to_string().c_str());
+						else if (g.transitions[sim.ready[n].index].behavior == hse::transition::passive)
+							printf("%d\tT%d.%d:[%s]\n", step, sim.ready[n].index, sim.ready[n].term, export_disjunction(g.transitions[sim.ready[n].index].action[sim.ready[n].term], v).to_string().c_str());
 
 						sim.fire(n);
 						enabled = sim.enabled();
@@ -289,7 +308,9 @@ int main(int argc, char **argv)
 	string pnfilename = "";
 	string egfilename = "";
 	string gfilename = "";
-	vector<pair<int, int> > steps;
+	vector<hse::term_index> steps;
+
+	bool labels = false;
 
 	for (int i = 1; i < argc; i++)
 	{
@@ -352,6 +373,8 @@ int main(int argc, char **argv)
 				return 1;
 			}
 		}
+		else if (arg == "--labels" || arg == "-l")
+			labels = true;
 		else
 		{
 			string filename = argv[i];
@@ -373,7 +396,7 @@ int main(int argc, char **argv)
 					while (fgets(command, 255, seq) != NULL)
 					{
 						if (sscanf(command, "%d.%d", &n, &n1) == 2)
-							steps.push_back(pair<int, int>(n, n1));
+							steps.push_back(hse::term_index(n, n1));
 					}
 					fclose(seq);
 				}
@@ -395,7 +418,7 @@ int main(int argc, char **argv)
 		while (hse_tokens.decrement(__FILE__, __LINE__))
 		{
 			parse_hse::parallel syntax(hse_tokens);
-			g.merge(import_graph(hse_tokens, syntax, v, true));
+			g.merge(hse::parallel, import_graph(hse_tokens, syntax, v, true));
 
 			hse_tokens.increment(false);
 			hse_tokens.expect<parse_hse::parallel>();
@@ -406,7 +429,7 @@ int main(int argc, char **argv)
 		while (dot_tokens.decrement(__FILE__, __LINE__))
 		{
 			parse_dot::graph syntax(dot_tokens);
-			g.merge(import_graph(dot_tokens, syntax, v, true));
+			g.merge(hse::parallel, import_graph(dot_tokens, syntax, v, true));
 
 			dot_tokens.increment(false);
 			dot_tokens.expect<parse_dot::graph>();
@@ -416,16 +439,18 @@ int main(int argc, char **argv)
 		if (gfilename != "")
 		{
 			FILE *fout = fopen(gfilename.c_str(), "w");
-			fprintf(fout, "%s", export_graph(g, v, false).to_string().c_str());
+			fprintf(fout, "%s", export_graph(g, v, labels).to_string().c_str());
 			fclose(fout);
 		}
 
 		if (egfilename != "")
 		{
 			g.elaborate();
+			for (int i = 0; i < (int)g.places.size(); i++)
+				g.places[i].predicate.espresso();
 
 			FILE *fout = fopen(egfilename.c_str(), "w");
-			fprintf(fout, "%s", export_graph(g, v).to_string().c_str());
+			fprintf(fout, "%s", export_graph(g, v, labels).to_string().c_str());
 			fclose(fout);
 		}
 
@@ -434,7 +459,7 @@ int main(int argc, char **argv)
 			hse::graph pn = g.to_petri_net();
 
 			FILE *fout = fopen(pnfilename.c_str(), "w");
-			fprintf(fout, "%s", export_graph(pn, v).to_string().c_str());
+			fprintf(fout, "%s", export_graph(pn, v, labels).to_string().c_str());
 			fclose(fout);
 		}
 
@@ -443,7 +468,7 @@ int main(int argc, char **argv)
 			hse::graph sg = g.to_state_graph();
 
 			FILE *fout = fopen(sgfilename.c_str(), "w");
-			fprintf(fout, "%s", export_graph(sg, v).to_string().c_str());
+			fprintf(fout, "%s", export_graph(sg, v, labels).to_string().c_str());
 			fclose(fout);
 		}
 
