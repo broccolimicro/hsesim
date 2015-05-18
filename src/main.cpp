@@ -11,6 +11,7 @@
 #include <hse/graph.h>
 #include <hse/simulator.h>
 #include <interpret_hse/import.h>
+#include <interpret_hse/export.h>
 #include <interpret_dot/export.h>
 #include <interpret_dot/import.h>
 #include <interpret_boolean/export.h>
@@ -73,8 +74,8 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 	hse::simulator sim;
 	sim.base = &g;
 
-	tokenizer conjunction_parser(false);
-	parse_boolean::internal_parallel::register_syntax(conjunction_parser);
+	tokenizer internal_parallel_parser(false);
+	parse_boolean::internal_parallel::register_syntax(internal_parallel_parser);
 
 	int seed = 0;
 	srand(seed);
@@ -202,10 +203,10 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 					i++;
 			}
 
-			conjunction_parser.insert("", string(command).substr(i));
-			parse_boolean::internal_parallel expr(conjunction_parser);
-			boolean::cube action = import_cube(conjunction_parser, expr, v, false);
-			if (conjunction_parser.is_clean())
+			internal_parallel_parser.insert("", string(command).substr(i));
+			parse_boolean::internal_parallel expr(internal_parallel_parser);
+			boolean::cube action = import_cube(internal_parallel_parser, expr, v, false);
+			if (internal_parallel_parser.is_clean())
 				for (int i = 0; i < (int)sim.tokens.size(); i++)
 				{
 					if (i == n)
@@ -213,7 +214,7 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 					else
 						sim.tokens[i].state = boolean::remote_transition(sim.tokens[i].state, action);
 				}
-			conjunction_parser.reset();
+			internal_parallel_parser.reset();
 			enabled = sim.enabled();
 		}
 		else if (strncmp(command, "force", 5) == 0)
@@ -222,13 +223,13 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 				printf("error: expected expression\n");
 			else
 			{
-				conjunction_parser.insert("", string(command).substr(6));
-				parse_boolean::internal_parallel expr(conjunction_parser);
-				boolean::cube action = import_cube(conjunction_parser, expr, v, false);
-				if (conjunction_parser.is_clean())
+				internal_parallel_parser.insert("", string(command).substr(6));
+				parse_boolean::internal_parallel expr(internal_parallel_parser);
+				boolean::cube action = import_cube(internal_parallel_parser, expr, v, false);
+				if (internal_parallel_parser.is_clean())
 					for (int i = 0; i < (int)sim.tokens.size(); i++)
 						sim.tokens[i].state = boolean::local_transition(sim.tokens[i].state, action);
-				conjunction_parser.reset();
+				internal_parallel_parser.reset();
 				enabled = sim.enabled();
 			}
 		}
@@ -440,6 +441,7 @@ int main(int argc, char **argv)
 		{
 			FILE *fout = fopen(gfilename.c_str(), "w");
 			fprintf(fout, "%s", export_graph(g, v, labels).to_string().c_str());
+			printf("%s\n", export_parallel(g, v).to_string().c_str());
 			fclose(fout);
 		}
 
