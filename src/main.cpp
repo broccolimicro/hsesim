@@ -7,6 +7,8 @@
 
 #include <common/standard.h>
 #include <parse/parse.h>
+#include <parse/default/block_comment.h>
+#include <parse/default/line_comment.h>
 #include <parse_hse/parallel.h>
 #include <hse/graph.h>
 #include <hse/simulator.h>
@@ -69,6 +71,24 @@ void print_command_help()
 	printf(" force <expr>        execute a transition as if it were local to all tokens\n");
 }
 
+void print_instabilities(const hse::graph &g, boolean::variable_set &v, const vector<hse::instability> &unstable)
+{
+	for (int i = 0; i < (int)unstable.size(); i++)
+		error("", export_instability(g, v, unstable[i]), __FILE__, __LINE__);
+}
+
+void print_interference(const hse::graph &g, boolean::variable_set &v, const vector<hse::interference> &interfering)
+{
+	for (int i = 0; i < (int)interfering.size(); i++)
+		error("", export_interference(g, v, interfering[i]), __FILE__, __LINE__);
+}
+
+void print_deadlock(boolean::variable_set &v, const vector<hse::deadlock> deadlocks)
+{
+	for (int i = 0; i < (int)deadlocks.size(); i++)
+		error("", export_deadlock(v, deadlocks[i]), __FILE__, __LINE__);
+}
+
 void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> steps = vector<hse::term_index>())
 {
 	hse::simulator sim;
@@ -106,7 +126,10 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 		else if (strncmp(command, "seed", 4) == 0)
 		{
 			if (sscanf(command, "seed %d", &n) == 1)
+			{
 				seed = n;
+				srand(seed);
+			}
 			else
 				printf("error: expected seed value\n");
 		}
@@ -216,6 +239,10 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 				}
 			internal_parallel_parser.reset();
 			enabled = sim.enabled();
+			print_instabilities(g, v, sim.unstable);
+			print_interference(g, v, sim.interfering);
+			sim.interfering.clear();
+			sim.unstable.clear();
 		}
 		else if (strncmp(command, "force", 5) == 0)
 		{
@@ -231,6 +258,10 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 						sim.tokens[i].state = boolean::local_transition(sim.tokens[i].state, action);
 				internal_parallel_parser.reset();
 				enabled = sim.enabled();
+				print_instabilities(g, v, sim.unstable);
+				print_interference(g, v, sim.interfering);
+				sim.interfering.clear();
+				sim.unstable.clear();
 			}
 		}
 		else if (strncmp(command, "step", 4) == 0 || strncmp(command, "s", 1) == 0)
@@ -256,11 +287,15 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 					steps.push_back(hse::term_index(sim.ready[firing].index, sim.ready[firing].term));
 
 				if (g.transitions[sim.ready[firing].index].behavior == hse::transition::active)
-					printf("%d\tT%d.%d:%s\n", step, sim.ready[firing].index, sim.ready[firing].term, export_disjunction(g.transitions[sim.ready[firing].index].action[sim.ready[firing].term], v).to_string().c_str());
+					printf("%d\tT%d.%d:%s\n", step, sim.ready[firing].index, sim.ready[firing].term, export_internal_choice(g.transitions[sim.ready[firing].index].action[sim.ready[firing].term], v).to_string().c_str());
 				else if (g.transitions[sim.ready[firing].index].behavior == hse::transition::passive)
 					printf("%d\tT%d.%d:[%s]\n", step, sim.ready[firing].index, sim.ready[firing].term, export_disjunction(g.transitions[sim.ready[firing].index].action[sim.ready[firing].term], v).to_string().c_str());
 				sim.fire(firing);
 				enabled = sim.enabled();
+				print_instabilities(g, v, sim.unstable);
+				print_interference(g, v, sim.interfering);
+				sim.interfering.clear();
+				sim.unstable.clear();
 				step++;
 			}
 		}
@@ -277,12 +312,16 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 						steps.push_back(hse::term_index(sim.ready[n].index, sim.ready[n].term));
 
 						if (g.transitions[sim.ready[n].index].behavior == hse::transition::active)
-							printf("%d\tT%d.%d:%s\n", step, sim.ready[n].index, sim.ready[n].term, export_disjunction(g.transitions[sim.ready[n].index].action[sim.ready[n].term], v).to_string().c_str());
+							printf("%d\tT%d.%d:%s\n", step, sim.ready[n].index, sim.ready[n].term, export_internal_choice(g.transitions[sim.ready[n].index].action[sim.ready[n].term], v).to_string().c_str());
 						else if (g.transitions[sim.ready[n].index].behavior == hse::transition::passive)
 							printf("%d\tT%d.%d:[%s]\n", step, sim.ready[n].index, sim.ready[n].term, export_disjunction(g.transitions[sim.ready[n].index].action[sim.ready[n].term], v).to_string().c_str());
 
 						sim.fire(n);
 						enabled = sim.enabled();
+						print_instabilities(g, v, sim.unstable);
+						print_interference(g, v, sim.interfering);
+						sim.interfering.clear();
+						sim.unstable.clear();
 						step++;
 					}
 				}
@@ -305,6 +344,8 @@ int main(int argc, char **argv)
 	tokenizer dot_tokens;
 	parse_hse::parallel::register_syntax(hse_tokens);
 	parse_dot::graph::register_syntax(dot_tokens);
+	//hse_tokens.register_comment<parse::block_comment>();
+	//hse_tokens.register_comment<parse::line_comment>();
 	string sgfilename = "";
 	string pnfilename = "";
 	string egfilename = "";
@@ -441,13 +482,20 @@ int main(int argc, char **argv)
 		{
 			FILE *fout = fopen(gfilename.c_str(), "w");
 			fprintf(fout, "%s", export_graph(g, v, labels).to_string().c_str());
-			printf("%s\n", export_parallel(g, v).to_string().c_str());
 			fclose(fout);
 		}
 
 		if (egfilename != "")
 		{
-			g.elaborate();
+			vector<hse::instability> unstable;
+			vector<hse::interference> interfering;
+			vector<hse::deadlock> deadlocks;
+			g.elaborate(unstable, interfering, deadlocks);
+
+			print_instabilities(g, v, unstable);
+			print_interference(g, v, interfering);
+			print_deadlock(v, deadlocks);
+
 			for (int i = 0; i < (int)g.places.size(); i++)
 				g.places[i].predicate.espresso();
 
@@ -467,7 +515,14 @@ int main(int argc, char **argv)
 
 		if (sgfilename != "")
 		{
-			hse::graph sg = g.to_state_graph();
+			vector<hse::instability> unstable;
+			vector<hse::interference> interfering;
+			vector<hse::deadlock> deadlocks;
+			hse::graph sg = g.to_state_graph(unstable, interfering, deadlocks);
+
+			print_instabilities(g, v, unstable);
+			print_interference(g, v, interfering);
+			print_deadlock(v, deadlocks);
 
 			FILE *fout = fopen(sgfilename.c_str(), "w");
 			fprintf(fout, "%s", export_graph(sg, v, labels).to_string().c_str());
