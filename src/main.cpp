@@ -476,7 +476,7 @@ int main(int argc, char **argv)
 			dot_tokens.increment(false);
 			dot_tokens.expect<parse_dot::graph>();
 		}
-		g.compact();
+		g.compact(true);
 
 		if (gfilename != "")
 		{
