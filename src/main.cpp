@@ -196,18 +196,18 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 		else if ((strncmp(command, "tokens", 6) == 0 && length == 6) || (strncmp(command, "t", 1) == 0 && length == 1))
 		{
 			printf("%s {\n", export_conjunction(sim.global, v).to_string().c_str());
-			for (int i = 0; i < sim.tokens.size(); i++)
-				printf("\t(%d) P%d:%s\n", i, sim.tokens[i].index, export_conjunction(sim.tokens[i].state, v).to_string().c_str());
+			for (int i = 0; i < sim.local.tokens.size(); i++)
+				printf("\t(%d) P%d:%s\n", i, sim.local.tokens[i].index, export_conjunction(sim.local.tokens[i].state, v).to_string().c_str());
 			printf("}\n");
 		}
 		else if ((strncmp(command, "enabled", 7) == 0 && length == 7) || (strncmp(command, "e", 1) == 0 && length == 1))
 		{
 			for (int i = 0; i < enabled; i++)
 			{
-				if (g.transitions[sim.ready[i].index].behavior == hse::transition::active)
-					printf("(%d) T%d.%d:%s     ", i, sim.ready[i].index, sim.ready[i].term, export_internal_parallel(g.transitions[sim.ready[i].index].action[sim.ready[i].term], v).to_string().c_str());
+				if (g.transitions[sim.local.ready[i].index].behavior == hse::transition::active)
+					printf("(%d) T%d.%d:%s     ", i, sim.local.ready[i].index, sim.local.ready[i].term, export_internal_parallel(g.transitions[sim.local.ready[i].index].action[sim.local.ready[i].term], v).to_string().c_str());
 				else
-					printf("(%d) T%d.%d:[%s]     ", i, sim.ready[i].index, sim.ready[i].term, export_conjunction(g.transitions[sim.ready[i].index].action[sim.ready[i].term], v).to_string().c_str());
+					printf("(%d) T%d.%d:[%s]     ", i, sim.local.ready[i].index, sim.local.ready[i].term, export_conjunction(g.transitions[sim.local.ready[i].index].action[sim.local.ready[i].term], v).to_string().c_str());
 			}
 			printf("\n");
 		}
@@ -230,12 +230,12 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 			parse_boolean::internal_parallel expr(internal_parallel_parser);
 			boolean::cube action = import_cube(internal_parallel_parser, expr, v, false);
 			if (internal_parallel_parser.is_clean())
-				for (int i = 0; i < (int)sim.tokens.size(); i++)
+				for (int i = 0; i < (int)sim.local.tokens.size(); i++)
 				{
 					if (i == n)
-						sim.tokens[i].state = boolean::local_transition(sim.tokens[i].state, action);
+						sim.local.tokens[i].state = boolean::local_transition(sim.local.tokens[i].state, action);
 					else
-						sim.tokens[i].state = boolean::remote_transition(sim.tokens[i].state, action);
+						sim.local.tokens[i].state = boolean::remote_transition(sim.local.tokens[i].state, action);
 				}
 			internal_parallel_parser.reset();
 			enabled = sim.enabled();
@@ -254,8 +254,8 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 				parse_boolean::internal_parallel expr(internal_parallel_parser);
 				boolean::cube action = import_cube(internal_parallel_parser, expr, v, false);
 				if (internal_parallel_parser.is_clean())
-					for (int i = 0; i < (int)sim.tokens.size(); i++)
-						sim.tokens[i].state = boolean::local_transition(sim.tokens[i].state, action);
+					for (int i = 0; i < (int)sim.local.tokens.size(); i++)
+						sim.local.tokens[i].state = boolean::local_transition(sim.local.tokens[i].state, action);
 				internal_parallel_parser.reset();
 				enabled = sim.enabled();
 				print_instabilities(g, v, sim.unstable);
@@ -274,22 +274,22 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 				int firing = rand()%enabled;
 				if (step < (int)steps.size())
 				{
-					for (firing = 0; firing < (int)sim.ready.size() &&
-					(sim.ready[firing].index != steps[step].index || sim.ready[firing].term != steps[step].term); firing++);
+					for (firing = 0; firing < (int)sim.local.ready.size() &&
+					(sim.local.ready[firing].index != steps[step].index || sim.local.ready[firing].term != steps[step].term); firing++);
 
-					if (firing == (int)sim.ready.size())
+					if (firing == (int)sim.local.ready.size())
 					{
 						printf("error: loaded simulation does not match HSE, please clear the simulation to continue\n");
 						break;
 					}
 				}
 				else
-					steps.push_back(hse::term_index(sim.ready[firing].index, sim.ready[firing].term));
+					steps.push_back(hse::term_index(sim.local.ready[firing].index, sim.local.ready[firing].term));
 
-				if (g.transitions[sim.ready[firing].index].behavior == hse::transition::active)
-					printf("%d\tT%d.%d:%s\n", step, sim.ready[firing].index, sim.ready[firing].term, export_internal_choice(g.transitions[sim.ready[firing].index].action[sim.ready[firing].term], v).to_string().c_str());
-				else if (g.transitions[sim.ready[firing].index].behavior == hse::transition::passive)
-					printf("%d\tT%d.%d:[%s]\n", step, sim.ready[firing].index, sim.ready[firing].term, export_disjunction(g.transitions[sim.ready[firing].index].action[sim.ready[firing].term], v).to_string().c_str());
+				if (g.transitions[sim.local.ready[firing].index].behavior == hse::transition::active)
+					printf("%d\tT%d.%d:%s\n", step, sim.local.ready[firing].index, sim.local.ready[firing].term, export_internal_choice(g.transitions[sim.local.ready[firing].index].action[sim.local.ready[firing].term], v).to_string().c_str());
+				else if (g.transitions[sim.local.ready[firing].index].behavior == hse::transition::passive)
+					printf("%d\tT%d.%d:[%s]\n", step, sim.local.ready[firing].index, sim.local.ready[firing].term, export_disjunction(g.transitions[sim.local.ready[firing].index].action[sim.local.ready[firing].term], v).to_string().c_str());
 				sim.fire(firing);
 				enabled = sim.enabled();
 				print_instabilities(g, v, sim.unstable);
@@ -309,12 +309,12 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 						printf("error: deviating from loaded simulation, please clear the simulation to continue\n");
 					else
 					{
-						steps.push_back(hse::term_index(sim.ready[n].index, sim.ready[n].term));
+						steps.push_back(hse::term_index(sim.local.ready[n].index, sim.local.ready[n].term));
 
-						if (g.transitions[sim.ready[n].index].behavior == hse::transition::active)
-							printf("%d\tT%d.%d:%s\n", step, sim.ready[n].index, sim.ready[n].term, export_internal_choice(g.transitions[sim.ready[n].index].action[sim.ready[n].term], v).to_string().c_str());
-						else if (g.transitions[sim.ready[n].index].behavior == hse::transition::passive)
-							printf("%d\tT%d.%d:[%s]\n", step, sim.ready[n].index, sim.ready[n].term, export_disjunction(g.transitions[sim.ready[n].index].action[sim.ready[n].term], v).to_string().c_str());
+						if (g.transitions[sim.local.ready[n].index].behavior == hse::transition::active)
+							printf("%d\tT%d.%d:%s\n", step, sim.local.ready[n].index, sim.local.ready[n].term, export_internal_choice(g.transitions[sim.local.ready[n].index].action[sim.local.ready[n].term], v).to_string().c_str());
+						else if (g.transitions[sim.local.ready[n].index].behavior == hse::transition::passive)
+							printf("%d\tT%d.%d:[%s]\n", step, sim.local.ready[n].index, sim.local.ready[n].term, export_disjunction(g.transitions[sim.local.ready[n].index].action[sim.local.ready[n].term], v).to_string().c_str());
 
 						sim.fire(n);
 						enabled = sim.enabled();
