@@ -173,7 +173,7 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 		{
 			if (sscanf(command, "reset %d", &n) == 1 || sscanf(command, "r%d", &n) == 1)
 			{
-				sim = hse::simulator(&g, n);
+				sim = hse::simulator(&g, n, false);
 				enabled = sim.enabled();
 				step = 0;
 				srand(seed);
@@ -455,15 +455,17 @@ int main(int argc, char **argv)
 		hse::graph g;
 		boolean::variable_set v;
 
+		bool first = true;
 		hse_tokens.increment(false);
 		hse_tokens.expect<parse_hse::parallel>();
 		while (hse_tokens.decrement(__FILE__, __LINE__))
 		{
 			parse_hse::parallel syntax(hse_tokens);
-			g.merge(hse::parallel, import_graph(hse_tokens, syntax, v, true));
+			g.merge(hse::parallel, import_graph(hse_tokens, syntax, v, true), !first);
 
 			hse_tokens.increment(false);
 			hse_tokens.expect<parse_hse::parallel>();
+			first = false;
 		}
 
 		dot_tokens.increment(false);
@@ -471,10 +473,11 @@ int main(int argc, char **argv)
 		while (dot_tokens.decrement(__FILE__, __LINE__))
 		{
 			parse_dot::graph syntax(dot_tokens);
-			g.merge(hse::parallel, import_graph(dot_tokens, syntax, v, true));
+			g.merge(hse::parallel, import_graph(dot_tokens, syntax, v, true), !first);
 
 			dot_tokens.increment(false);
 			dot_tokens.expect<parse_dot::graph>();
+			first = false;
 		}
 		g.compact(true);
 
@@ -490,7 +493,7 @@ int main(int argc, char **argv)
 			vector<hse::instability> unstable;
 			vector<hse::interference> interfering;
 			vector<hse::deadlock> deadlocks;
-			g.elaborate(unstable, interfering, deadlocks);
+			g.elaborate(unstable, interfering, deadlocks, true);
 
 			print_instabilities(g, v, unstable);
 			print_interference(g, v, interfering);
