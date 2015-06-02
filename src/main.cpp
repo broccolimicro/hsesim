@@ -95,7 +95,8 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 		{
 			fclose(script);
 			script = stdin;
-			fgets(command, 255, script);
+			if (fgets(command, 255, script) == NULL)
+				exit(0);
 		}
 		int length = strlen(command);
 		command[length-1] = '\0';
@@ -164,12 +165,21 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 			{
 				for (int i = 0; i < (int)g.source.size(); i++)
 				{
+					string tokenstr[g.source[i].size()];
+					int maxlen = 0;
+					for (int j = 0; j < (int)g.source[i].size(); j++)
+					{
+						tokenstr[j] = export_node(hse::iterator(hse::place::type, g.source[i][j].index), g, v);
+						if (tokenstr[j].length() > maxlen)
+							maxlen = tokenstr[j].length();
+					}
+
 					printf("(%d) {", i);
 					for (int j = 0; j < (int)g.source[i].size(); j++)
 					{
 						if (j != 0)
 							printf(" ");
-						printf("\tP%d:%s\n", g.source[i][j].index, export_guard(g.source[i][j].state, v).to_string().c_str());
+						printf("\tP%-3d\t%s%s\t%s\n", g.source[i][j].index, tokenstr[j].c_str(), string(maxlen-tokenstr[j].length(), ' ').c_str(), export_guard(g.source[i][j].state, v).to_string().c_str());
 					}
 					printf("}\n");
 				}
@@ -178,8 +188,17 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 		else if ((strncmp(command, "tokens", 6) == 0 && length == 6) || (strncmp(command, "t", 1) == 0 && length == 1))
 		{
 			printf("%s {\n", export_guard(sim.global, v).to_string().c_str());
-			for (int i = 0; i < sim.local.tokens.size(); i++)
-				printf("\t(%d) P%d:%s\n", i, sim.local.tokens[i].index, export_guard(sim.local.tokens[i].state, v).to_string().c_str());
+			string tokenstr[sim.local.tokens.size()];
+			int maxlen = 0;
+			for (int i = 0; i < (int)sim.local.tokens.size(); i++)
+			{
+				tokenstr[i] = export_node(hse::iterator(hse::place::type, sim.local.tokens[i].index), g, v);
+				if (tokenstr[i].length() > maxlen)
+					maxlen = tokenstr[i].length();
+			}
+
+			for (int i = 0; i < (int)sim.local.tokens.size(); i++)
+				printf("\t(%d) P%-3d\t%s%s\t%s\n", i, sim.local.tokens[i].index, tokenstr[i].c_str(), string(maxlen-tokenstr[i].length(), ' ').c_str(), export_guard(sim.local.tokens[i].state, v).to_string().c_str());
 			printf("}\n");
 		}
 		else if ((strncmp(command, "enabled", 7) == 0 && length == 7) || (strncmp(command, "e", 1) == 0 && length == 1))
