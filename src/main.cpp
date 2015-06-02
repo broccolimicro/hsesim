@@ -76,8 +76,8 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 	hse::simulator sim;
 	sim.base = &g;
 
-	tokenizer internal_parallel_parser(false);
-	parse_boolean::internal_parallel::register_syntax(internal_parallel_parser);
+	tokenizer assignment_parser(false);
+	parse_boolean::assignment::register_syntax(assignment_parser);
 
 	int seed = 0;
 	srand(seed);
@@ -169,7 +169,7 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 					{
 						if (j != 0)
 							printf(" ");
-						printf("\tP%d:%s\n", g.source[i][j].index, export_conjunction(g.source[i][j].state, v).to_string().c_str());
+						printf("\tP%d:%s\n", g.source[i][j].index, export_guard(g.source[i][j].state, v).to_string().c_str());
 					}
 					printf("}\n");
 				}
@@ -177,9 +177,9 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 		}
 		else if ((strncmp(command, "tokens", 6) == 0 && length == 6) || (strncmp(command, "t", 1) == 0 && length == 1))
 		{
-			printf("%s {\n", export_conjunction(sim.global, v).to_string().c_str());
+			printf("%s {\n", export_guard(sim.global, v).to_string().c_str());
 			for (int i = 0; i < sim.local.tokens.size(); i++)
-				printf("\t(%d) P%d:%s\n", i, sim.local.tokens[i].index, export_conjunction(sim.local.tokens[i].state, v).to_string().c_str());
+				printf("\t(%d) P%d:%s\n", i, sim.local.tokens[i].index, export_guard(sim.local.tokens[i].state, v).to_string().c_str());
 			printf("}\n");
 		}
 		else if ((strncmp(command, "enabled", 7) == 0 && length == 7) || (strncmp(command, "e", 1) == 0 && length == 1))
@@ -187,9 +187,9 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 			for (int i = 0; i < enabled; i++)
 			{
 				if (g.transitions[sim.local.ready[i].index].behavior == hse::transition::active)
-					printf("(%d) T%d.%d:%s     ", i, sim.local.ready[i].index, sim.local.ready[i].term, export_internal_parallel(g.transitions[sim.local.ready[i].index].action[sim.local.ready[i].term], v).to_string().c_str());
+					printf("(%d) T%d.%d:%s     ", i, sim.local.ready[i].index, sim.local.ready[i].term, export_assignment(g.transitions[sim.local.ready[i].index].action[sim.local.ready[i].term], v).to_string().c_str());
 				else
-					printf("(%d) T%d.%d:[%s]     ", i, sim.local.ready[i].index, sim.local.ready[i].term, export_conjunction(g.transitions[sim.local.ready[i].index].action[sim.local.ready[i].term], v).to_string().c_str());
+					printf("(%d) T%d.%d:[%s]     ", i, sim.local.ready[i].index, sim.local.ready[i].term, export_guard(g.transitions[sim.local.ready[i].index].action[sim.local.ready[i].term], v).to_string().c_str());
 			}
 			printf("\n");
 		}
@@ -208,10 +208,10 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 					i++;
 			}
 
-			internal_parallel_parser.insert("", string(command).substr(i));
-			parse_boolean::internal_parallel expr(internal_parallel_parser);
-			boolean::cube action = import_cube(internal_parallel_parser, expr, v, false);
-			if (internal_parallel_parser.is_clean())
+			assignment_parser.insert("", string(command).substr(i));
+			parse_boolean::assignment expr(assignment_parser);
+			boolean::cube action = import_cube(expr, v, &assignment_parser, false);
+			if (assignment_parser.is_clean())
 				for (int i = 0; i < (int)sim.local.tokens.size(); i++)
 				{
 					if (i == n)
@@ -219,7 +219,7 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 					else
 						sim.local.tokens[i].state = boolean::remote_transition(sim.local.tokens[i].state, action);
 				}
-			internal_parallel_parser.reset();
+			assignment_parser.reset();
 			enabled = sim.enabled(v);
 			sim.interfering.clear();
 			sim.unstable.clear();
@@ -230,13 +230,13 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 				printf("error: expected expression\n");
 			else
 			{
-				internal_parallel_parser.insert("", string(command).substr(6));
-				parse_boolean::internal_parallel expr(internal_parallel_parser);
-				boolean::cube action = import_cube(internal_parallel_parser, expr, v, false);
-				if (internal_parallel_parser.is_clean())
+				assignment_parser.insert("", string(command).substr(6));
+				parse_boolean::assignment expr(assignment_parser);
+				boolean::cube action = import_cube(expr, v, &assignment_parser, false);
+				if (assignment_parser.is_clean())
 					for (int i = 0; i < (int)sim.local.tokens.size(); i++)
 						sim.local.tokens[i].state = boolean::local_transition(sim.local.tokens[i].state, action);
-				internal_parallel_parser.reset();
+				assignment_parser.reset();
 				enabled = sim.enabled(v);
 				sim.interfering.clear();
 				sim.unstable.clear();
@@ -265,9 +265,9 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 					steps.push_back(hse::term_index(sim.local.ready[firing].index, sim.local.ready[firing].term));
 
 				if (g.transitions[sim.local.ready[firing].index].behavior == hse::transition::active)
-					printf("%d\tT%d.%d:%s\n", step, sim.local.ready[firing].index, sim.local.ready[firing].term, export_internal_choice(g.transitions[sim.local.ready[firing].index].action[sim.local.ready[firing].term], v).to_string().c_str());
+					printf("%d\tT%d.%d:%s\n", step, sim.local.ready[firing].index, sim.local.ready[firing].term, export_assignment(g.transitions[sim.local.ready[firing].index].action[sim.local.ready[firing].term], v).to_string().c_str());
 				else if (g.transitions[sim.local.ready[firing].index].behavior == hse::transition::passive)
-					printf("%d\tT%d.%d:[%s]\n", step, sim.local.ready[firing].index, sim.local.ready[firing].term, export_disjunction(g.transitions[sim.local.ready[firing].index].action[sim.local.ready[firing].term], v).to_string().c_str());
+					printf("%d\tT%d.%d:[%s]\n", step, sim.local.ready[firing].index, sim.local.ready[firing].term, export_guard(g.transitions[sim.local.ready[firing].index].action[sim.local.ready[firing].term], v).to_string().c_str());
 				sim.fire(firing);
 				enabled = sim.enabled(v);
 				sim.interfering.clear();
@@ -288,9 +288,9 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 						steps.push_back(hse::term_index(sim.local.ready[n].index, sim.local.ready[n].term));
 
 						if (g.transitions[sim.local.ready[n].index].behavior == hse::transition::active)
-							printf("%d\tT%d.%d:%s\n", step, sim.local.ready[n].index, sim.local.ready[n].term, export_internal_choice(g.transitions[sim.local.ready[n].index].action[sim.local.ready[n].term], v).to_string().c_str());
+							printf("%d\tT%d.%d:%s\n", step, sim.local.ready[n].index, sim.local.ready[n].term, export_assignment(g.transitions[sim.local.ready[n].index].action[sim.local.ready[n].term], v).to_string().c_str());
 						else if (g.transitions[sim.local.ready[n].index].behavior == hse::transition::passive)
-							printf("%d\tT%d.%d:[%s]\n", step, sim.local.ready[n].index, sim.local.ready[n].term, export_disjunction(g.transitions[sim.local.ready[n].index].action[sim.local.ready[n].term], v).to_string().c_str());
+							printf("%d\tT%d.%d:[%s]\n", step, sim.local.ready[n].index, sim.local.ready[n].term, export_guard(g.transitions[sim.local.ready[n].index].action[sim.local.ready[n].term], v).to_string().c_str());
 
 						sim.fire(n);
 						enabled = sim.enabled(v);
@@ -435,7 +435,7 @@ int main(int argc, char **argv)
 		while (hse_tokens.decrement(__FILE__, __LINE__))
 		{
 			parse_hse::parallel syntax(hse_tokens);
-			g.merge(hse::parallel, import_graph(hse_tokens, syntax, v, true), !first);
+			g.merge(hse::parallel, import_graph(syntax, v, &hse_tokens, true), !first);
 
 			hse_tokens.increment(false);
 			hse_tokens.expect<parse_hse::parallel>();
@@ -447,7 +447,7 @@ int main(int argc, char **argv)
 		while (dot_tokens.decrement(__FILE__, __LINE__))
 		{
 			parse_dot::graph syntax(dot_tokens);
-			g.merge(hse::parallel, import_graph(dot_tokens, syntax, v, true), !first);
+			g.merge(hse::parallel, import_graph(syntax, v, &dot_tokens, true), !first);
 
 			dot_tokens.increment(false);
 			dot_tokens.expect<parse_dot::graph>();
