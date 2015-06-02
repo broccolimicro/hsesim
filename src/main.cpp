@@ -75,6 +75,7 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 {
 	hse::simulator sim;
 	sim.base = &g;
+	sim.variables = &v;
 
 	tokenizer assignment_parser(false);
 	parse_boolean::assignment::register_syntax(assignment_parser);
@@ -156,8 +157,8 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 		{
 			if (sscanf(command, "reset %d", &n) == 1 || sscanf(command, "r%d", &n) == 1)
 			{
-				sim = hse::simulator(&g, n, false);
-				enabled = sim.enabled(v);
+				sim = hse::simulator(&g, &v, n, false);
+				enabled = sim.enabled();
 				step = 0;
 				srand(seed);
 			}
@@ -239,7 +240,7 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 						sim.local.tokens[i].state = boolean::remote_transition(sim.local.tokens[i].state, action);
 				}
 			assignment_parser.reset();
-			enabled = sim.enabled(v);
+			enabled = sim.enabled();
 			sim.interfering.clear();
 			sim.unstable.clear();
 		}
@@ -256,7 +257,7 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 					for (int i = 0; i < (int)sim.local.tokens.size(); i++)
 						sim.local.tokens[i].state = boolean::local_transition(sim.local.tokens[i].state, action);
 				assignment_parser.reset();
-				enabled = sim.enabled(v);
+				enabled = sim.enabled();
 				sim.interfering.clear();
 				sim.unstable.clear();
 			}
@@ -288,7 +289,7 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 				else if (g.transitions[sim.local.ready[firing].index].behavior == hse::transition::passive)
 					printf("%d\tT%d.%d:[%s]\n", step, sim.local.ready[firing].index, sim.local.ready[firing].term, export_guard(g.transitions[sim.local.ready[firing].index].action[sim.local.ready[firing].term], v).to_string().c_str());
 				sim.fire(firing);
-				enabled = sim.enabled(v);
+				enabled = sim.enabled();
 				sim.interfering.clear();
 				sim.unstable.clear();
 				step++;
@@ -312,7 +313,7 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 							printf("%d\tT%d.%d:[%s]\n", step, sim.local.ready[n].index, sim.local.ready[n].term, export_guard(g.transitions[sim.local.ready[n].index].action[sim.local.ready[n].term], v).to_string().c_str());
 
 						sim.fire(n);
-						enabled = sim.enabled(v);
+						enabled = sim.enabled();
 						sim.interfering.clear();
 						sim.unstable.clear();
 						step++;
@@ -337,8 +338,8 @@ int main(int argc, char **argv)
 	tokenizer dot_tokens;
 	parse_hse::parallel::register_syntax(hse_tokens);
 	parse_dot::graph::register_syntax(dot_tokens);
-	//hse_tokens.register_comment<parse::block_comment>();
-	//hse_tokens.register_comment<parse::line_comment>();
+	hse_tokens.register_comment<parse::block_comment>();
+	hse_tokens.register_comment<parse::line_comment>();
 	string sgfilename = "";
 	string pnfilename = "";
 	string egfilename = "";
