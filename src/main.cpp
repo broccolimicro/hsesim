@@ -163,53 +163,19 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 				srand(seed);
 			}
 			else
-			{
 				for (int i = 0; i < (int)g.source.size(); i++)
-				{
-					string tokenstr[g.source[i].size()];
-					int maxlen = 0;
-					for (int j = 0; j < (int)g.source[i].size(); j++)
-					{
-						tokenstr[j] = export_node(hse::iterator(hse::place::type, g.source[i][j].index), g, v);
-						if (tokenstr[j].length() > maxlen)
-							maxlen = tokenstr[j].length();
-					}
-
-					printf("(%d) {", i);
-					for (int j = 0; j < (int)g.source[i].size(); j++)
-					{
-						if (j != 0)
-							printf(" ");
-						printf("\tP%-3d\t%s%s\t%s\n", g.source[i][j].index, tokenstr[j].c_str(), string(maxlen-tokenstr[j].length(), ' ').c_str(), export_guard(g.source[i][j].state, v).to_string().c_str());
-					}
-					printf("}\n");
-				}
-			}
+					printf("(%d) %s\n", i, g.source[i].to_string(v).c_str());
 		}
 		else if ((strncmp(command, "tokens", 6) == 0 && length == 6) || (strncmp(command, "t", 1) == 0 && length == 1))
-		{
-			printf("%s {\n", export_guard(sim.global, v).to_string().c_str());
-			string tokenstr[sim.local.tokens.size()];
-			int maxlen = 0;
-			for (int i = 0; i < (int)sim.local.tokens.size(); i++)
-			{
-				tokenstr[i] = export_node(hse::iterator(hse::place::type, sim.local.tokens[i].index), g, v);
-				if (tokenstr[i].length() > maxlen)
-					maxlen = tokenstr[i].length();
-			}
-
-			for (int i = 0; i < (int)sim.local.tokens.size(); i++)
-				printf("\t(%d) P%-3d\t%s%s\t%s\n", i, sim.local.tokens[i].index, tokenstr[i].c_str(), string(maxlen-tokenstr[i].length(), ' ').c_str(), export_guard(sim.local.tokens[i].state, v).to_string().c_str());
-			printf("}\n");
-		}
+			printf("%s\n", sim.get_state().to_string(v).c_str());
 		else if ((strncmp(command, "enabled", 7) == 0 && length == 7) || (strncmp(command, "e", 1) == 0 && length == 1))
 		{
 			for (int i = 0; i < enabled; i++)
 			{
 				if (g.transitions[sim.local.ready[i].index].behavior == hse::transition::active)
-					printf("(%d) T%d.%d:%s     ", i, sim.local.ready[i].index, sim.local.ready[i].term, export_assignment(g.transitions[sim.local.ready[i].index].action[sim.local.ready[i].term], v).to_string().c_str());
+					printf("(%d) T%d.%d:%s     ", i, sim.local.ready[i].index, sim.local.ready[i].term, export_assignment(g.transitions[sim.local.ready[i].index].local_action[sim.local.ready[i].term], v).to_string().c_str());
 				else
-					printf("(%d) T%d.%d:[%s]     ", i, sim.local.ready[i].index, sim.local.ready[i].term, export_guard(g.transitions[sim.local.ready[i].index].action[sim.local.ready[i].term], v).to_string().c_str());
+					printf("(%d) T%d.%d:[%s]     ", i, sim.local.ready[i].index, sim.local.ready[i].term, export_guard(g.transitions[sim.local.ready[i].index].local_action[sim.local.ready[i].term], v).to_string().c_str());
 			}
 			printf("\n");
 		}
@@ -232,13 +198,11 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 			parse_boolean::assignment expr(assignment_parser);
 			boolean::cube action = import_cube(expr, v, &assignment_parser, false);
 			if (assignment_parser.is_clean())
-				for (int i = 0; i < (int)sim.local.tokens.size(); i++)
-				{
-					if (i == n)
-						sim.local.tokens[i].state = boolean::local_transition(sim.local.tokens[i].state, action);
-					else
-						sim.local.tokens[i].state = boolean::remote_transition(sim.local.tokens[i].state, action);
-				}
+			{
+				sim.encoding = boolean::local_transition(sim.encoding, action);
+				// TODO
+				sim.encoding = boolean::remote_transition(sim.encoding, action);
+			}
 			assignment_parser.reset();
 			enabled = sim.enabled();
 			sim.interfering.clear();
@@ -254,8 +218,10 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 				parse_boolean::assignment expr(assignment_parser);
 				boolean::cube action = import_cube(expr, v, &assignment_parser, false);
 				if (assignment_parser.is_clean())
-					for (int i = 0; i < (int)sim.local.tokens.size(); i++)
-						sim.local.tokens[i].state = boolean::local_transition(sim.local.tokens[i].state, action);
+				{
+					// TODO
+					sim.encoding = boolean::local_transition(sim.encoding, action);
+				}
 				assignment_parser.reset();
 				enabled = sim.enabled();
 				sim.interfering.clear();
@@ -285,9 +251,9 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 					steps.push_back(hse::term_index(sim.local.ready[firing].index, sim.local.ready[firing].term));
 
 				if (g.transitions[sim.local.ready[firing].index].behavior == hse::transition::active)
-					printf("%d\tT%d.%d:%s\n", step, sim.local.ready[firing].index, sim.local.ready[firing].term, export_assignment(g.transitions[sim.local.ready[firing].index].action[sim.local.ready[firing].term], v).to_string().c_str());
+					printf("%d\tT%d.%d:%s\n", step, sim.local.ready[firing].index, sim.local.ready[firing].term, export_assignment(g.transitions[sim.local.ready[firing].index].local_action[sim.local.ready[firing].term], v).to_string().c_str());
 				else if (g.transitions[sim.local.ready[firing].index].behavior == hse::transition::passive)
-					printf("%d\tT%d.%d:[%s]\n", step, sim.local.ready[firing].index, sim.local.ready[firing].term, export_guard(g.transitions[sim.local.ready[firing].index].action[sim.local.ready[firing].term], v).to_string().c_str());
+					printf("%d\tT%d.%d:[%s]\n", step, sim.local.ready[firing].index, sim.local.ready[firing].term, export_guard(g.transitions[sim.local.ready[firing].index].local_action[sim.local.ready[firing].term], v).to_string().c_str());
 				sim.fire(firing);
 				enabled = sim.enabled();
 				sim.interfering.clear();
@@ -308,9 +274,9 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 						steps.push_back(hse::term_index(sim.local.ready[n].index, sim.local.ready[n].term));
 
 						if (g.transitions[sim.local.ready[n].index].behavior == hse::transition::active)
-							printf("%d\tT%d.%d:%s\n", step, sim.local.ready[n].index, sim.local.ready[n].term, export_assignment(g.transitions[sim.local.ready[n].index].action[sim.local.ready[n].term], v).to_string().c_str());
+							printf("%d\tT%d.%d:%s\n", step, sim.local.ready[n].index, sim.local.ready[n].term, export_assignment(g.transitions[sim.local.ready[n].index].local_action[sim.local.ready[n].term], v).to_string().c_str());
 						else if (g.transitions[sim.local.ready[n].index].behavior == hse::transition::passive)
-							printf("%d\tT%d.%d:[%s]\n", step, sim.local.ready[n].index, sim.local.ready[n].term, export_guard(g.transitions[sim.local.ready[n].index].action[sim.local.ready[n].term], v).to_string().c_str());
+							printf("%d\tT%d.%d:[%s]\n", step, sim.local.ready[n].index, sim.local.ready[n].term, export_guard(g.transitions[sim.local.ready[n].index].local_action[sim.local.ready[n].term], v).to_string().c_str());
 
 						sim.fire(n);
 						enabled = sim.enabled();
@@ -473,7 +439,7 @@ int main(int argc, char **argv)
 			dot_tokens.expect<parse_dot::graph>();
 			first = false;
 		}
-		g.compact(v, true);
+		g.post_process(v, true);
 
 		if (gfilename != "")
 		{
