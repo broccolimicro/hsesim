@@ -197,11 +197,12 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 			assignment_parser.insert("", string(command).substr(i));
 			parse_boolean::assignment expr(assignment_parser);
 			boolean::cube action = import_cube(expr, v, &assignment_parser, false);
+			boolean::cube remote_action = v.remote(action);
 			if (assignment_parser.is_clean())
 			{
 				sim.encoding = boolean::local_transition(sim.encoding, action);
-				// TODO
-				sim.encoding = boolean::remote_transition(sim.encoding, action);
+				sim.global = boolean::local_transition(sim.global, remote_action);
+				sim.encoding = boolean::remote_transition(sim.encoding, sim.global);
 			}
 			assignment_parser.reset();
 			enabled = sim.enabled();
@@ -217,10 +218,11 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 				assignment_parser.insert("", string(command).substr(6));
 				parse_boolean::assignment expr(assignment_parser);
 				boolean::cube action = import_cube(expr, v, &assignment_parser, false);
+				boolean::cube remote_action = v.remote(action);
 				if (assignment_parser.is_clean())
 				{
-					// TODO
-					sim.encoding = boolean::local_transition(sim.encoding, action);
+					sim.encoding = boolean::local_transition(sim.encoding, remote_action);
+					sim.global = boolean::local_transition(sim.global, remote_action);
 				}
 				assignment_parser.reset();
 				enabled = sim.enabled();
