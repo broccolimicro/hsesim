@@ -185,7 +185,7 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 
 			for (int i = 0; i < (int)tokens.size(); i++)
 			{
-				printf("%s {\n", export_guard(sim.encoding.mask(g.places[sim.local.tokens[tokens[i][0]].index].mask), v).to_string().c_str());
+				printf("%s {\n", export_guard(sim.encoding.flipped_mask(g.places[sim.local.tokens[tokens[i][0]].index].mask), v).to_string().c_str());
 				for (int j = 0; j < (int)tokens[i].size(); j++)
 					printf("\t(%d) P%d\t%s\n", tokens[i][j], sim.local.tokens[tokens[i][j]].index, export_node(hse::iterator(hse::place::type, sim.local.tokens[tokens[i][j]].index), g, v).c_str());
 				printf("}\n");
