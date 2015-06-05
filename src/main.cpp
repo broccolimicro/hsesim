@@ -167,7 +167,12 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 					printf("(%d) %s\n", i, g.source[i].to_string(v).c_str());
 		}
 		else if ((strncmp(command, "tokens", 6) == 0 && length == 6) || (strncmp(command, "t", 1) == 0 && length == 1))
-			printf("%s\n", sim.get_state().to_string(v).c_str());
+		{
+			printf("%s {\n", export_guard(sim.encoding, v).to_string().c_str());
+			for (int i = 0; i < (int)sim.local.tokens.size(); i++)
+				printf("\t(%d) P%d\t%s\n", i, sim.local.tokens[i].index, export_node(hse::iterator(hse::place::type, sim.local.tokens[i].index), g, v).c_str());
+			printf("}\n");
+		}
 		else if ((strncmp(command, "enabled", 7) == 0 && length == 7) || (strncmp(command, "e", 1) == 0 && length == 1))
 		{
 			for (int i = 0; i < enabled; i++)
@@ -196,7 +201,7 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 
 			assignment_parser.insert("", string(command).substr(i));
 			parse_boolean::assignment expr(assignment_parser);
-			boolean::cube action = import_cube(expr, v, &assignment_parser, false);
+			boolean::cube action = import_cube(expr, v, 0, &assignment_parser, false);
 			boolean::cube remote_action = v.remote(action);
 			if (assignment_parser.is_clean())
 			{
@@ -217,7 +222,7 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 			{
 				assignment_parser.insert("", string(command).substr(6));
 				parse_boolean::assignment expr(assignment_parser);
-				boolean::cube action = import_cube(expr, v, &assignment_parser, false);
+				boolean::cube action = import_cube(expr, v, 0, &assignment_parser, false);
 				boolean::cube remote_action = v.remote(action);
 				if (assignment_parser.is_clean())
 				{
@@ -423,7 +428,8 @@ int main(int argc, char **argv)
 		while (hse_tokens.decrement(__FILE__, __LINE__))
 		{
 			parse_hse::parallel syntax(hse_tokens);
-			g.merge(hse::parallel, import_graph(syntax, v, &hse_tokens, true), !first);
+			cout << syntax.to_string() << endl;
+			g.merge(hse::parallel, import_graph(syntax, v, 0, &hse_tokens, true), !first);
 
 			hse_tokens.increment(false);
 			hse_tokens.expect<parse_hse::parallel>();
