@@ -466,6 +466,27 @@ int main(int argc, char **argv)
 		}
 		g.post_process(v, true);
 
+		for (int i = 0; i < v.variables.size(); i++)
+		{
+			vector<int> written;
+			vector<int> read;
+
+			for (int j = 0; j < (int)g.transitions.size(); j++)
+			{
+				vector<int> vars = g.transitions[i].remote_action.vars();
+				if (find(vars.begin(), vars.end(), i) != vars.end())
+				{
+					if (g.transitions[i].behavior == hse::transition::active)
+						written.push_back(j);
+					else
+						read.push_back(j);
+				}
+			}
+
+			if (written.size() == 0 && read.size() > 0)
+				warning("", v.variables[i].to_string() + " never assigned", __FILE__, __LINE__);
+		}
+
 		if (gfilename != "")
 		{
 			FILE *fout = fopen(gfilename.c_str(), "w");
