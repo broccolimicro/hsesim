@@ -168,10 +168,28 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 		}
 		else if ((strncmp(command, "tokens", 6) == 0 && length == 6) || (strncmp(command, "t", 1) == 0 && length == 1))
 		{
-			printf("%s {\n", export_guard(sim.encoding, v).to_string().c_str());
+			vector<vector<int> > tokens;
 			for (int i = 0; i < (int)sim.local.tokens.size(); i++)
-				printf("\t(%d) P%d\t%s\n", i, sim.local.tokens[i].index, export_node(hse::iterator(hse::place::type, sim.local.tokens[i].index), g, v).c_str());
-			printf("}\n");
+			{
+				bool found = false;
+				for (int j = 0; j < (int)tokens.size() && !found; j++)
+					if (g.places[sim.local.tokens[i].index].mask == g.places[sim.local.tokens[tokens[j][0]].index].mask)
+					{
+						tokens[j].push_back(i);
+						found = true;
+					}
+
+				if (!found)
+					tokens.push_back(vector<int>(1, i));
+			}
+
+			for (int i = 0; i < (int)tokens.size(); i++)
+			{
+				printf("%s {\n", export_guard(sim.encoding.mask(g.places[sim.local.tokens[tokens[i][0]].index].mask), v).to_string().c_str());
+				for (int j = 0; j < (int)tokens[i].size(); j++)
+					printf("\t(%d) P%d\t%s\n", tokens[i][j], sim.local.tokens[tokens[i][j]].index, export_node(hse::iterator(hse::place::type, sim.local.tokens[tokens[i][j]].index), g, v).c_str());
+				printf("}\n");
+			}
 		}
 		else if ((strncmp(command, "enabled", 7) == 0 && length == 7) || (strncmp(command, "e", 1) == 0 && length == 1))
 		{
@@ -428,7 +446,6 @@ int main(int argc, char **argv)
 		while (hse_tokens.decrement(__FILE__, __LINE__))
 		{
 			parse_hse::parallel syntax(hse_tokens);
-			cout << syntax.to_string() << endl;
 			g.merge(hse::parallel, import_graph(syntax, v, 0, &hse_tokens, true), !first);
 
 			hse_tokens.increment(false);
