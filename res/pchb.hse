@@ -1,8 +1,0 @@
-L.e+,R.f-,R.t-; [R.e&~L.f&~L.t];
-*[
-	[	R.e & L.t -> R.t+ 
-	[]	R.e & L.f -> R.f+
-	]; L.e-; [~R.e]; R.t-, R.f-; [~L.t & ~L.f]; L.e+
-] ||
-R.e+; [~R.f&~R.t]; *[[R.t | R.f]; R.e-; [~R.t & ~R.f]; R.e+] ||
-L.t-,L.f-; [L.e]; *[L.t+:L.f+; [~L.e]; L.t-,L.f-; [L.e]]
