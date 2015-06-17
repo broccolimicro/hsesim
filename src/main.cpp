@@ -157,14 +157,14 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 		{
 			if (sscanf(command, "reset %d", &n) == 1 || sscanf(command, "r%d", &n) == 1)
 			{
-				sim = hse::simulator(&g, &v, n, false);
+				sim = hse::simulator(&g, &v, g.reset[n], 0, false);
 				enabled = sim.enabled();
 				step = 0;
 				srand(seed);
 			}
 			else
-				for (int i = 0; i < (int)g.source.size(); i++)
-					printf("(%d) %s\n", i, g.source[i].to_string(v).c_str());
+				for (int i = 0; i < (int)g.reset.size(); i++)
+					printf("(%d) %s\n", i, g.reset[i].to_string(v).c_str());
 		}
 		else if ((strncmp(command, "tokens", 6) == 0 && length == 6) || (strncmp(command, "t", 1) == 0 && length == 1))
 		{
