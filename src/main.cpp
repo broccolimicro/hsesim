@@ -223,14 +223,15 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 			boolean::cube remote_action = v.remote(action);
 			if (assignment_parser.is_clean())
 			{
-				sim.encoding = boolean::local_transition(sim.encoding, action);
-				sim.global = boolean::local_transition(sim.global, remote_action);
-				sim.encoding = boolean::remote_transition(sim.encoding, sim.global);
+				sim.encoding = boolean::local_assign(sim.encoding, action, true);
+				sim.global = boolean::local_assign(sim.global, remote_action, true);
+				sim.encoding = boolean::remote_assign(sim.encoding, sim.global, true);
 			}
 			assignment_parser.reset();
 			enabled = sim.enabled();
-			sim.interfering.clear();
-			sim.unstable.clear();
+			sim.interference_errors.clear();
+			sim.instability_errors.clear();
+			sim.mutex_errors.clear();
 		}
 		else if (strncmp(command, "force", 5) == 0)
 		{
@@ -244,13 +245,14 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 				boolean::cube remote_action = v.remote(action);
 				if (assignment_parser.is_clean())
 				{
-					sim.encoding = boolean::local_transition(sim.encoding, remote_action);
-					sim.global = boolean::local_transition(sim.global, remote_action);
+					sim.encoding = boolean::local_assign(sim.encoding, remote_action, true);
+					sim.global = boolean::local_assign(sim.global, remote_action, true);
 				}
 				assignment_parser.reset();
 				enabled = sim.enabled();
-				sim.interfering.clear();
-				sim.unstable.clear();
+				sim.interference_errors.clear();
+				sim.instability_errors.clear();
+				sim.mutex_errors.clear();
 			}
 		}
 		else if (strncmp(command, "step", 4) == 0 || strncmp(command, "s", 1) == 0)
@@ -276,13 +278,16 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 					steps.push_back(hse::term_index(sim.local.ready[firing].index, sim.local.ready[firing].term));
 
 				if (g.transitions[sim.local.ready[firing].index].behavior == hse::transition::active)
-					printf("%d\tT%d.%d:%s\n", step, sim.local.ready[firing].index, sim.local.ready[firing].term, export_assignment(g.transitions[sim.local.ready[firing].index].local_action[sim.local.ready[firing].term], v).to_string().c_str());
+					printf("%d\tT%d.%d\t%s\n", step, sim.local.ready[firing].index, sim.local.ready[firing].term, export_assignment(g.transitions[sim.local.ready[firing].index].local_action[sim.local.ready[firing].term], v).to_string().c_str());
 				else if (g.transitions[sim.local.ready[firing].index].behavior == hse::transition::passive)
-					printf("%d\tT%d.%d:[%s]\n", step, sim.local.ready[firing].index, sim.local.ready[firing].term, export_guard(g.transitions[sim.local.ready[firing].index].local_action[sim.local.ready[firing].term], v).to_string().c_str());
+					printf("%d\tT%d\t[%s]\n", step, sim.local.ready[firing].index, export_guard(sim.local.ready[firing].guard_action, v).to_string().c_str());
+
 				sim.fire(firing);
+
 				enabled = sim.enabled();
-				sim.interfering.clear();
-				sim.unstable.clear();
+				sim.interference_errors.clear();
+				sim.instability_errors.clear();
+				sim.mutex_errors.clear();
 				step++;
 			}
 		}
@@ -299,14 +304,16 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 						steps.push_back(hse::term_index(sim.local.ready[n].index, sim.local.ready[n].term));
 
 						if (g.transitions[sim.local.ready[n].index].behavior == hse::transition::active)
-							printf("%d\tT%d.%d:%s\n", step, sim.local.ready[n].index, sim.local.ready[n].term, export_assignment(g.transitions[sim.local.ready[n].index].local_action[sim.local.ready[n].term], v).to_string().c_str());
+							printf("%d\tT%d.%d\t%s\n", step, sim.local.ready[n].index, sim.local.ready[n].term, export_assignment(g.transitions[sim.local.ready[n].index].local_action[sim.local.ready[n].term], v).to_string().c_str());
 						else if (g.transitions[sim.local.ready[n].index].behavior == hse::transition::passive)
-							printf("%d\tT%d.%d:[%s]\n", step, sim.local.ready[n].index, sim.local.ready[n].term, export_guard(g.transitions[sim.local.ready[n].index].local_action[sim.local.ready[n].term], v).to_string().c_str());
+							printf("%d\tT%d\t[%s]\n", step, sim.local.ready[n].index, export_guard(sim.local.ready[n].guard_action, v).to_string().c_str());
 
 						sim.fire(n);
+
 						enabled = sim.enabled();
-						sim.interfering.clear();
-						sim.unstable.clear();
+						sim.interference_errors.clear();
+						sim.instability_errors.clear();
+						sim.mutex_errors.clear();
 						step++;
 					}
 				}
@@ -465,27 +472,7 @@ int main(int argc, char **argv)
 			first = false;
 		}
 		g.post_process(v, true);
-
-		for (int i = 0; i < v.variables.size(); i++)
-		{
-			vector<int> written;
-			vector<int> read;
-
-			for (int j = 0; j < (int)g.transitions.size(); j++)
-			{
-				vector<int> vars = g.transitions[i].remote_action.vars();
-				if (find(vars.begin(), vars.end(), i) != vars.end())
-				{
-					if (g.transitions[i].behavior == hse::transition::active)
-						written.push_back(j);
-					else
-						read.push_back(j);
-				}
-			}
-
-			if (written.size() == 0 && read.size() > 0)
-				warning("", v.variables[i].to_string() + " never assigned", __FILE__, __LINE__);
-		}
+		g.check_variables(v);
 
 		if (gfilename != "")
 		{
