@@ -9,16 +9,14 @@
 #include <parse/parse.h>
 #include <parse/default/block_comment.h>
 #include <parse/default/line_comment.h>
-#include <parse_hse/parallel.h>
+#include <parse_chp/composition.h>
 #include <hse/graph.h>
 #include <hse/simulator.h>
 #include <interpret_hse/import.h>
 #include <interpret_hse/export.h>
-#include <interpret_dot/export.h>
-#include <interpret_dot/import.h>
 #include <interpret_boolean/export.h>
 #include <interpret_boolean/import.h>
-#include <boolean/variable.h>
+#include <ucs/variable.h>
 
 void print_help()
 {
@@ -71,14 +69,14 @@ void print_command_help()
 	printf(" force <expr>        execute a transition as if it were local to all tokens\n");
 }
 
-void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> steps = vector<hse::term_index>())
+void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> steps = vector<hse::term_index>())
 {
 	hse::simulator sim;
 	sim.base = &g;
 	sim.variables = &v;
 
 	tokenizer assignment_parser(false);
-	parse_boolean::assignment::register_syntax(assignment_parser);
+	parse_expression::composition::register_syntax(assignment_parser);
 
 	int seed = 0;
 	srand(seed);
@@ -185,7 +183,7 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 
 			for (int i = 0; i < (int)tokens.size(); i++)
 			{
-				printf("%s {\n", export_guard(sim.encoding.flipped_mask(g.places[sim.local.tokens[tokens[i][0]].index].mask), v).to_string().c_str());
+				printf("%s {\n", export_expression(sim.encoding.flipped_mask(g.places[sim.local.tokens[tokens[i][0]].index].mask), v).to_string().c_str());
 				for (int j = 0; j < (int)tokens[i].size(); j++)
 					printf("\t(%d) P%d\t%s\n", tokens[i][j], sim.local.tokens[tokens[i][j]].index, export_node(hse::iterator(hse::place::type, sim.local.tokens[tokens[i][j]].index), g, v).c_str());
 				printf("}\n");
@@ -196,9 +194,9 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 			for (int i = 0; i < enabled; i++)
 			{
 				if (g.transitions[sim.local.ready[i].index].behavior == hse::transition::active)
-					printf("(%d) T%d.%d:%s     ", i, sim.local.ready[i].index, sim.local.ready[i].term, export_assignment(g.transitions[sim.local.ready[i].index].local_action[sim.local.ready[i].term], v).to_string().c_str());
+					printf("(%d) T%d.%d:%s     ", i, sim.local.ready[i].index, sim.local.ready[i].term, export_composition(g.transitions[sim.local.ready[i].index].local_action[sim.local.ready[i].term], v).to_string().c_str());
 				else
-					printf("(%d) T%d.%d:[%s]     ", i, sim.local.ready[i].index, sim.local.ready[i].term, export_guard(g.transitions[sim.local.ready[i].index].local_action[sim.local.ready[i].term], v).to_string().c_str());
+					printf("(%d) T%d.%d:[%s]     ", i, sim.local.ready[i].index, sim.local.ready[i].term, export_expression(g.transitions[sim.local.ready[i].index].local_action[sim.local.ready[i].term], v).to_string().c_str());
 			}
 			printf("\n");
 		}
@@ -218,9 +216,9 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 			}
 
 			assignment_parser.insert("", string(command).substr(i));
-			parse_boolean::assignment expr(assignment_parser);
+			parse_expression::composition expr(assignment_parser);
 			boolean::cube action = import_cube(expr, v, 0, &assignment_parser, false);
-			boolean::cube remote_action = v.remote(action);
+			boolean::cube remote_action = action.remote(v.get_groups());
 			if (assignment_parser.is_clean())
 			{
 				sim.encoding = boolean::local_assign(sim.encoding, action, true);
@@ -240,9 +238,9 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 			else
 			{
 				assignment_parser.insert("", string(command).substr(6));
-				parse_boolean::assignment expr(assignment_parser);
+				parse_expression::composition expr(assignment_parser);
 				boolean::cube action = import_cube(expr, v, 0, &assignment_parser, false);
-				boolean::cube remote_action = v.remote(action);
+				boolean::cube remote_action = action.remote(v.get_groups());
 				if (assignment_parser.is_clean())
 				{
 					sim.encoding = boolean::local_assign(sim.encoding, remote_action, true);
@@ -278,9 +276,14 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 					steps.push_back(hse::term_index(sim.local.ready[firing].index, sim.local.ready[firing].term));
 
 				if (g.transitions[sim.local.ready[firing].index].behavior == hse::transition::active)
-					printf("%d\tT%d.%d\t%s\n", step, sim.local.ready[firing].index, sim.local.ready[firing].term, export_assignment(g.transitions[sim.local.ready[firing].index].local_action[sim.local.ready[firing].term], v).to_string().c_str());
+					printf("%d\tT%d.%d\t%s", step, sim.local.ready[firing].index, sim.local.ready[firing].term, export_composition(g.transitions[sim.local.ready[firing].index].local_action[sim.local.ready[firing].term], v).to_string().c_str());
 				else if (g.transitions[sim.local.ready[firing].index].behavior == hse::transition::passive)
-					printf("%d\tT%d\t[%s]\n", step, sim.local.ready[firing].index, export_guard(sim.local.ready[firing].guard_action, v).to_string().c_str());
+					printf("%d\tT%d\t[%s]", step, sim.local.ready[firing].index, export_expression(sim.local.ready[firing].guard_action, v).to_string().c_str());
+
+				if (sim.local.ready[firing].vacuous)
+					printf("\t\t\t[vacuous]");
+
+				printf("\n");
 
 				sim.fire(firing);
 
@@ -304,9 +307,9 @@ void real_time(hse::graph &g, boolean::variable_set &v, vector<hse::term_index> 
 						steps.push_back(hse::term_index(sim.local.ready[n].index, sim.local.ready[n].term));
 
 						if (g.transitions[sim.local.ready[n].index].behavior == hse::transition::active)
-							printf("%d\tT%d.%d\t%s\n", step, sim.local.ready[n].index, sim.local.ready[n].term, export_assignment(g.transitions[sim.local.ready[n].index].local_action[sim.local.ready[n].term], v).to_string().c_str());
+							printf("%d\tT%d.%d\t%s\n", step, sim.local.ready[n].index, sim.local.ready[n].term, export_composition(g.transitions[sim.local.ready[n].index].local_action[sim.local.ready[n].term], v).to_string().c_str());
 						else if (g.transitions[sim.local.ready[n].index].behavior == hse::transition::passive)
-							printf("%d\tT%d\t[%s]\n", step, sim.local.ready[n].index, export_guard(sim.local.ready[n].guard_action, v).to_string().c_str());
+							printf("%d\tT%d\t[%s]\n", step, sim.local.ready[n].index, export_expression(sim.local.ready[n].guard_action, v).to_string().c_str());
 
 						sim.fire(n);
 
@@ -334,7 +337,7 @@ int main(int argc, char **argv)
 	config.set_working_directory(argv[0]);
 	tokenizer hse_tokens;
 	tokenizer dot_tokens;
-	parse_hse::parallel::register_syntax(hse_tokens);
+	parse_chp::composition::register_syntax(hse_tokens);
 	parse_dot::graph::register_syntax(dot_tokens);
 	hse_tokens.register_comment<parse::block_comment>();
 	hse_tokens.register_comment<parse::line_comment>();
@@ -445,18 +448,19 @@ int main(int argc, char **argv)
 	if (is_clean() && hse_tokens.segments.size() > 0)
 	{
 		hse::graph g;
-		boolean::variable_set v;
+		ucs::variable_set v;
 
 		bool first = true;
 		hse_tokens.increment(false);
-		hse_tokens.expect<parse_hse::parallel>();
+		hse_tokens.expect<parse_chp::composition>();
 		while (hse_tokens.decrement(__FILE__, __LINE__))
 		{
-			parse_hse::parallel syntax(hse_tokens);
+			parse_chp::composition syntax(hse_tokens);
+			cout << syntax.to_string() << endl;
 			g.merge(hse::parallel, import_graph(syntax, v, 0, &hse_tokens, true), !first);
 
 			hse_tokens.increment(false);
-			hse_tokens.expect<parse_hse::parallel>();
+			hse_tokens.expect<parse_chp::composition>();
 			first = false;
 		}
 
