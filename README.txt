@@ -347,7 +347,7 @@ x'1+
 
 [x'1 & y'2]; z-
 
-If there are two processes in two isochronic regions like (x-;y+;P || [y]; x+),
+If there are two processes in two isochronic regions like (x-;y+;P)'0 || ([y]; x+)'1,
 then during the process P, the value of the node 'x' will be '-' because the
 process on the left knows that 'x' was '0' but that it will change to '1'. It
 just doesn't know when. Meanwhil in the process on the right, the value of 'x'
