@@ -430,6 +430,30 @@ and the final hse after the reset behavior has been processed looks like this:
 (*[[1->L.f+:1->L.t+]; [~L.e]; L.f-,L.t-; [L.e]]||
 *[[R.f|R.t]; R.e-; [~R.f&~R.t]; R.e+])'1
 
+========================= Limited Non-Proper Nesting ==========================
+
+In order to support things like initial token buffers where you reset the
+circuit in the middle of the HSE, a limited reset-tagging system has been
+added. 
+
+R.f+,R.t-,L.e+,en+; [R.e&~L.f&~L.t];  
+*[[  R.e & L.f -> R.f+
+  [] R.e & L.t -> R.t+
+  ]; L.e-; en-;
+  (
+     @ [~R.e]; R.f-,R.t- ||
+     [~L.f & ~L.t]; L.e+ @
+  ); en+
+ ]
+
+L.f-,L.t-; [L.e];  *[[1->L.f+:1->L.t+]; [~L.e]; L.f-,L.t-; [L.e]]||
+R.e+; [R.f&~R.t]; *[[R.f|R.t]; R.e-; [~R.f&~R.t]; R.e+]
+
+In this system, the '@' symbol represents a reset token at the nearest
+semicolon for current loop. So if there are multiple loops and you put a reset
+token on the inner most loop, that loop will reset there on every iteration of
+the outer loop.
+
 ================================== Examples ===================================
 
 The following is a set of simple examples to get you started.
