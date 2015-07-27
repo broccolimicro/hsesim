@@ -18,6 +18,100 @@ Conversion Options:
  -pn <file>     Convert this HSE to a petri-net and save it to a file
  -sg <file>     Convert this HSE to a state-graph and save it to a file
 
+=========================== Simulation Environment ============================
+
+In order to get to the simulation environment run the following command:
+
+hsesim file.hse
+
+It will bring you to a prompt that looks like this:
+
+(hsesim)
+
+From there you can execute any of the following commands:
+
+<arg> specifies a required argument
+(arg=value) specifies an optional argument with a default value
+
+General:
+ help, h             print this message
+ seed <n>            set the random seed for the simulation
+ source <file>       source and execute a list of commands from a file
+ save <file>         save the sequence of fired transitions to a '.sim' file
+ load <file>         load a sequence of transitions from a '.sim' file
+ clear, c            clear any stored sequence and return to random stepping
+ quit, q             exit the interactive simulation environment
+
+Running Simulation:
+ tokens, t           list the location and state information of every token
+ enabled, e          return the list of enabled transitions
+ fire <i>, f<i>      fire the i'th enabled transition
+ step (N=1), s(N=1)  step through N transitions (random unless a sequence is loaded)
+ reset (i), r(i)     reset the simulator to the initial marking and re-seed (does not clear)
+
+Setting/Viewing State:
+ set <i> <expr>      execute a transition as if it were local to the i'th token
+ set <expr>          execute a transition as if it were remote to all tokens
+ force <expr>        execute a transition as if it were local to all tokens
+
+The following example will be using this hse:
+
+R.f-,R.t-,L.e+; [R.e&~L.f&~L.t];
+*[[  R.e & L.f -> R.f+
+  [] R.e & L.t -> R.t+
+  ]; L.e-; [~R.e&~L.f&~L.t]; R.f-,R.t-; L.e+
+ ]||
+
+(L.f-,L.t-; [L.e];  *[[1->L.f+:1->L.t+]; [~L.e]; L.f-,L.t-; [L.e]]||
+R.e+; [~R.f&~R.t]; *[[R.f|R.t]; R.e-; [~R.f&~R.t]; R.e+])'1
+
+To begin, view set of possible reset states like so:
+
+(hsesim)r
+(0) {P0 P9 P15} {} ~R.f&~R.t&L.e&R.e&~L.f&~L.t&~L.f'1&~L.t'1&L.e'1&R.e'1&~R.f'1&~R.t'1
+(hsesim)r0
+
+You'll notice the ID's P0, P9, and P15. These refer to specific semicolons or
+"places" in the hse. To see what these labels refer to, you may run the
+following commands outside of the interaction simulation environment:
+
+hsesim file.hse -g file.dot -l
+dot -Tpng file.dot > file.png
+
+The '-l' option adds labels to all of the places, transitions, and arcs. 
+Now that you have set the current state to a reset state, you may take a look
+at the current state like so:
+
+(hsesim)t
+~R.f&~R.t&L.e&R.e&~L.f&~L.t {
+        (0) P0  L.e+ ; [R.e&L.f->...[]R.e&L.t->...]
+}
+~L.f'1&~L.t'1&L.e'1 {
+        (1) P9  [L.e'1 -> [1->L.f'1+...[]1->L.t'1+...]
+}
+R.e'1&~R.f'1&~R.t'1 {
+        (2) P15 R.e'1+ ; [R.f'1]
+}
+
+You may also step randomly like so
+
+(hsesim)s3
+0       T10.0   L.t'1+
+1       T2      [R.e&L.t]
+2       T3.0    R.t+
+(hsesim)s
+3       T15     [R.t'1]
+(hsesim)s2
+4       T16.0   R.e'1-
+5       T4.0    L.e-
+
+or you can view the list of enabled transitions and fire one like so
+
+
+
+
+
+
 =================================== Syntax ====================================
 
 What is HSE? 
@@ -219,19 +313,52 @@ All of the processes Pi...Pn will be collapsed.
   You will not receive any state information about the special environment
   processes.
 
+=============================== Reset Behavior ================================
+
+Because reset behavior can be a complex thing that has a multitude of timing
+assumptions and different possible implementations, hsesim has a very basic
+reset implementation. It goes as follows: as long as there isn't any choice to
+be made, and we don't enter a loop, execute transitions and accumulate their
+affect on the state into a reset state. Here is an example:
+
+R.f-,R.t-,L.e+; [R.e&~L.f&~L.t];
+*[[  R.e & L.f -> R.f+
+  [] R.e & L.t -> R.t+
+  ]; L.e-; [~R.e&~L.f&~L.t]; R.f-,R.t-; L.e+
+ ]||
+
+(L.f-,L.t-; [L.e];  *[[1->L.f+:1->L.t+]; [~L.e]; L.f-,L.t-; [L.e]]||
+R.e+; [~R.f&~R.t]; *[[R.f|R.t]; R.e-; [~R.f&~R.t]; R.e+])'1
+
+In this WCHB buffer, the reset state for each process is as follows:
+
+Process 0: ~R.f&~R.t&L.e&R.e&~L.f&~L.t
+Process 1: ~L.f&~L.t&L.e
+Process 2: R.e&~R.f&~R.t
+
+and the final hse after the reset behavior has been processed looks like this:
+
+*[[  R.e & L.f -> R.f+
+  [] R.e & L.t -> R.t+
+  ]; L.e-; [~R.e&~L.f&~L.t]; R.f-,R.t-; L.e+
+ ]||
+
+(*[[1->L.f+:1->L.t+]; [~L.e]; L.f-,L.t-; [L.e]]||
+*[[R.f|R.t]; R.e-; [~R.f&~R.t]; R.e+])'1
+
 ================================== Examples ===================================
 
 The following is a set of simple examples to get you started.
 
 -------------------------------- WCHB Buffer ----------------------------------
 
-R.f-,R.t-,L.e+,en+; [R.e&~L.f&~L.t];
+R.f-,R.t-,L.e+; [R.e&~L.f&~L.t];
 *[[  R.e & L.f -> R.f+
   [] R.e & L.t -> R.t+
   ]; L.e-; [~R.e&~L.f&~L.t]; R.f-,R.t-; L.e+
  ]||
 
-(L.f-,L.t-; [L.e];  *[L.f+:L.t+; [~L.e]; L.f-,L.t-; [L.e]]||
+(L.f-,L.t-; [L.e];  *[[1->L.f+:1->L.t+]; [~L.e]; L.f-,L.t-; [L.e]]||
 R.e+; [~R.f&~R.t]; *[[R.f|R.t]; R.e-; [~R.f&~R.t]; R.e+])'1
 
 -------------------------------- PCHB Split -----------------------------------
@@ -261,10 +388,10 @@ B.e+; [~B.f & ~B.t];
 *[[B.t | B.f]; B.e-; [~B.t & ~B.f]; B.e+] ||
 
 L.f-,L.t-; [L.e];
-*[[1 -> L.t+ [] 1 -> L.f+]; [~L.e]; (L.t-||L.f-); [L.e]] ||
+*[[1 -> L.t+ : 1 -> L.f+]; [~L.e]; (L.t-||L.f-); [L.e]] ||
 
 S.f-,S.t-; [S.e];
-*[[1 -> S.t+ [] 1 -> S.f+]; [~S.e]; (S.t-||S.f-); [S.e]])'1
+*[[1 -> S.t+ : 1 -> S.f+]; [~S.e]; (S.t-||S.f-); [S.e]])'1
 
 --------------------------------- PCHB Adder ----------------------------------
 
@@ -291,19 +418,19 @@ Co.e+; [~Co.f&~Co.t]; *[[Co.t | Co.f]; Co.e-; [~Co.t & ~Co.f]; Co.e+] ||
 
 A.f-,A.t-; [A.e];
 *[[ 1 -> A.t+
-  []1 -> A.f+
+  : 1 -> A.f+
   ]; [~A.e]; A.t-,A.f-; [A.e]
  ] ||
 
 B.f-,B.t-; [B.e];
 *[[ 1 -> B.t+
-  []1 -> B.f+
+  : 1 -> B.f+
   ]; [~B.e]; B.t-,B.f-; [B.e]
  ] ||
 
 Ci.f-,Ci.t-; [Ci.e];
 *[[ 1 -> Ci.t+
-  []1 -> Ci.f+
+  : 1 -> Ci.f+
   ]; [~Ci.e]; Ci.t-,Ci.f-; [Ci.e]
  ])'1
 
@@ -311,8 +438,39 @@ Ci.f-,Ci.t-; [Ci.e];
 
 hsesim has not gone through full and rigorous testing. Take its feedback with a 
 grain of salt. If you do find a bug, please send me the hse that causes it and 
-a short description at eab242@cornell.edu. 
+a short description at eab242@cornell.edu. The following is a list of known
+bugs.
 
-I have thus far fixed all the bugs that I know about. However, if I find any
-more, I will update this list.
+-------------------------------------------------------------------------------
+
+R.f-,R.t-,L.e+; [R.e&~L.f&~L.t];
+*[[  R.e & L.f -> R.f+
+  [] R.e & L.t -> R.t+
+  ]; L.e-; ([~R.e&~L.f];R.f-||[~R.e&~L.t];R.t-); L.e+
+ ]||
+
+(L.f-,L.t-; [L.e];  *[[1->L.f+:1->L.t+]; [~L.e]; L.f-,L.t-; [L.e]]||
+R.e+; [~R.f&~R.t]; *[[R.f|R.t]; R.e-; [~R.f&~R.t]; R.e+])'1
+
+This is a possible implementation for a wchb buffer. Notice the following 
+section:
+
+([~R.e&~L.f];R.f-||[~R.e&~L.t];R.t-)
+
+This section exercises a subtle but explosive bug. One of R.f- or R.t- are
+vacuous. Suppose the non vacuous of those two transitions fires. This will 
+allow R.e+ to fire, disabling the guard on the other branch. However, since the
+transition it guards is vacuous, it incorrectly flags the guard as unstable.
+
+The easiest way to get around this bug is to move the [~R.e] section of the 
+guard to before the buggy section:
+
+[~R.e];([~L.f];R.f-||[~L.t];R.t-)
+
+Now the ~R.e guard completes before R.f- and R.t- are allowed to fire. This bug
+is an artifact of treating guards as transitions with a completion time when
+they really aren't. Because of the composable nature of guards, however, its
+very difficult to fix this problem.
+
+-------------------------------------------------------------------------------
 
