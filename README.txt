@@ -65,7 +65,7 @@ R.f-,R.t-,L.e+; [R.e&~L.f&~L.t];
 (L.f-,L.t-; [L.e];  *[[1->L.f+:1->L.t+]; [~L.e]; L.f-,L.t-; [L.e]]||
 R.e+; [~R.f&~R.t]; *[[R.f|R.t]; R.e-; [~R.f&~R.t]; R.e+])'1
 
-To begin, view set of possible reset states like so:
+To begin, view set of possible reset states and then pick one.
 
 (hsesim)r
 (0) {P0 P9 P15} {} ~R.f&~R.t&L.e&R.e&~L.f&~L.t&~L.f'1&~L.t'1&L.e'1&R.e'1&~R.f'1&~R.t'1
@@ -73,14 +73,14 @@ To begin, view set of possible reset states like so:
 
 You'll notice the ID's P0, P9, and P15. These refer to specific semicolons or
 "places" in the hse. To see what these labels refer to, you may run the
-following commands outside of the interaction simulation environment:
+following commands outside of the interactive simulation environment:
 
 hsesim file.hse -g file.dot -l
 dot -Tpng file.dot > file.png
 
 The '-l' option adds labels to all of the places, transitions, and arcs. 
 Now that you have set the current state to a reset state, you may take a look
-at the current state like so:
+at the current state.
 
 (hsesim)t
 ~R.f&~R.t&L.e&R.e&~L.f&~L.t {
@@ -93,24 +93,108 @@ R.e'1&~R.f'1&~R.t'1 {
         (2) P15 R.e'1+ ; [R.f'1]
 }
 
-You may also step randomly like so
+You can view the list of enabled transitions and fire one.
 
+(hsesim)e
+(0) T9.0:L.f'1+     (1) T10.0:L.t'1+
+(hsesim)f1
+0       T10.0   L.t'1+
+(hsesim)e
+(0) T2.0:[R.e&L.t]
+(hsesim)f0
+1       T2      [R.e&L.t]
+(hsesim)e
+(0) T3.0:R.t+
+(hsesim)f0
+2       T3.0    R.t+
+
+You may also step through the simulation. This has two functions. As you
+progress through te simulation, the simulator will remember all of the
+transitions that have fired and in what order. If you decide to reset the
+simulation after simulating and then step, this will re-execute the remembered
+list of transitions. If you step through all of the remembered transitions,
+it will continue to step randomly. This will execute the transitions in a 
+*random order*. Unlike prsim, this simulator has no sense of time other than 
+transition order.
+
+(hsesim)e
+(0) T9.0:L.f'1+     (1) T10.0:L.t'1+
+(hsesim)f1
+0       T10.0   L.t'1+
+(hsesim)e
+(0) T2.0:[R.e&L.t]
+(hsesim)f0
+1       T2      [R.e&L.t]
+(hsesim)e
+(0) T3.0:R.t+
+(hsesim)f0
+2       T3.0    R.t+
+(hsesim)s6
+3       T15     [R.t'1]
+4       T4.0    L.e-
+5       T16.0   R.e'1-
+6       T11     [L.t'1&~L.e'1]
+7       T13.0   L.t'1-
+8       T12.0   L.f'1-                  [vacuous]
+(hsesim)r0
+(hsesim)s9
+0       T10.0   L.t'1+
+1       T2      [R.e&L.t]
+2       T3.0    R.t+
+3       T15     [R.t'1]
+4       T4.0    L.e-
+5       T16.0   R.e'1-
+6       T11     [L.t'1&~L.e'1]
+7       T13.0   L.t'1-
+8       T12.0   L.f'1-                  [vacuous]
+
+You can save this list of transitions to a file and load it up in a later 
+simulation.
+
+(hsesim)save test
+
+(hsesim)load test
+(hsesim)r0
+(hsesim)s9
+0       T10.0   L.t'1+
+1       T2      [R.e&L.t]
+2       T3.0    R.t+
+3       T15     [R.t'1]
+4       T4.0    L.e-
+5       T16.0   R.e'1-
+6       T11     [L.t'1&~L.e'1]
+7       T13.0   L.t'1-
+8       T12.0   L.f'1-                  [vacuous]
+
+If you no longer want to simulate the future steps, you may clear them. This 
+will remove any transitions in the list ahead of your current step. However,
+transitions before your current step will still be remembered.
+
+(hsesim)load test
+(hsesim)r0
+(hsesim)s9
+0       T10.0   L.t'1+
+1       T2      [R.e&L.t]
+2       T3.0    R.t+
+3       T15     [R.t'1]
+4       T4.0    L.e-
+5       T16.0   R.e'1-
+6       T11     [L.t'1&~L.e'1]
+7       T13.0   L.t'1-
+8       T12.0   L.f'1-                  [vacuous]
+(hsesim)r0
 (hsesim)s3
 0       T10.0   L.t'1+
 1       T2      [R.e&L.t]
 2       T3.0    R.t+
-(hsesim)s
+(hsesim)clear
+(hsesim)s6
 3       T15     [R.t'1]
-(hsesim)s2
 4       T16.0   R.e'1-
 5       T4.0    L.e-
-
-or you can view the list of enabled transitions and fire one like so
-
-
-
-
-
+6       T11     [L.t'1&~L.e'1]
+7       T12.0   L.f'1-                  [vacuous]
+8       T13.0   L.t'1-
 
 =================================== Syntax ====================================
 
