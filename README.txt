@@ -447,22 +447,20 @@ R.e+; [~R.f&~R.t]; *[[R.f|R.t]; R.e-; [~R.f&~R.t]; R.e+])'1
 
 -------------------------------- PCHB Split -----------------------------------
 
-A.f-,A.t-,B.f-,B.t-,S.e+,L.e+; [~S.f & ~S.t & ~L.f & ~L.t & A.e & B.e];
+A.f-,A.t-,B.f-,B.t-,SL.e+; [~S.f & ~S.t & ~L.f & ~L.t & A.e & B.e];
 *[
-  (
-    [  A.e & S.f & L.f -> A.f+
-    [] A.e & S.f & L.t -> A.t+
-    [] S.t -> skip
-    ]||
-    [  B.e & S.t & L.f -> B.f+
-    [] B.e & S.t & L.t -> B.t+
-    [] S.f -> skip
-    ]
-  ); S.e-, L.e-;
+  ([  A.e & S.f & L.f -> A.f+
+  [] A.e & S.f & L.t -> A.t+
+  [] S.t -> skip
+  ] ||
+  [ B.e & S.t & L.f -> B.f+
+  [] B.e & S.t & L.t -> B.t+
+  [] S.f -> skip
+  ]); SL.e-;
   (
     [~A.e | ~A.f & ~A.t -> A.f-, A.t-] ||
     [~B.e | ~B.f & ~B.t -> B.f-, B.t-]
-  ); [~S.f & ~S.t & ~L.f & ~L.t -> S.e+, L.e+]
+  ); [~S.f & ~S.t & ~L.f & ~L.t -> SL.e+]
  ]||
 
 (A.e+; [~A.f & ~A.t];
@@ -471,15 +469,15 @@ A.f-,A.t-,B.f-,B.t-,S.e+,L.e+; [~S.f & ~S.t & ~L.f & ~L.t & A.e & B.e];
 B.e+; [~B.f & ~B.t];
 *[[B.t | B.f]; B.e-; [~B.t & ~B.f]; B.e+] ||
 
-L.f-,L.t-; [L.e];
-*[[1 -> L.t+ : 1 -> L.f+]; [~L.e]; (L.t-||L.f-); [L.e]] ||
+L.f-,L.t-; [SL.e];
+*[[1 -> L.t+ : 1 -> L.f+]; [~SL.e]; (L.t-||L.f-); [SL.e]] ||
 
-S.f-,S.t-; [S.e];
-*[[1 -> S.t+ : 1 -> S.f+]; [~S.e]; (S.t-||S.f-); [S.e]])'1
+S.f-,S.t-; [SL.e];
+*[[1 -> S.t+ : 1 -> S.f+]; [~SL.e]; (S.t-||S.f-); [SL.e]])'1
 
 --------------------------------- PCHB Adder ----------------------------------
 
-S.f-,S.t-,Co.f-,Co.t-,A.e+,B.e+,Ci.e+; [S.e&Co.e&~A.f&~A.t&~B.f&~B.t&~Ci.f&~Ci.t];
+S.f-,S.t-,Co.f-,Co.t-,ABCi.e+; [S.e&Co.e&~A.f&~A.t&~B.f&~B.t&~Ci.f&~Ci.t];
 *[
     (
         [   S.e & (A.t & B.f & Ci.f | A.f & B.t & Ci.f | A.f & B.f & Ci.t | A.t & B.t & Ci.t) -> S.t+
@@ -488,34 +486,34 @@ S.f-,S.t-,Co.f-,Co.t-,A.e+,B.e+,Ci.e+; [S.e&Co.e&~A.f&~A.t&~B.f&~B.t&~Ci.f&~Ci.t
         [   Co.e & (A.t & B.t & Ci.f | A.t & B.f & Ci.t | A.f & B.t & Ci.t | A.t & B.t & Ci.t) -> Co.t+
         []  Co.e & (A.t & B.f & Ci.f | A.f & B.t & Ci.f | A.f & B.f & Ci.t | A.f & B.f & Ci.f) -> Co.f+
         ]
-    ); A.e-,B.e-,Ci.e-;
+    ); ABCi.e-;
     (
         [~S.e -> S.t-,S.f-] ||
         [~Co.e -> Co.t-,Co.f-]
     ); [~A.t & ~A.f & ~B.t & ~B.f & ~Ci.t & ~Ci.f];
-    A.e+,B.e+,Ci.e+
+    ABCi.e+
 ]
 
 (S.e+; [~S.f&~S.t]; *[[S.t | S.f]; S.e-; [~S.t & ~S.f]; S.e+] ||
 
 Co.e+; [~Co.f&~Co.t]; *[[Co.t | Co.f]; Co.e-; [~Co.t & ~Co.f]; Co.e+] ||
 
-A.f-,A.t-; [A.e];
+A.f-,A.t-; [ABCi.e];
 *[[ 1 -> A.t+
   : 1 -> A.f+
-  ]; [~A.e]; A.t-,A.f-; [A.e]
+  ]; [~ABCi.e]; A.t-,A.f-; [ABCi.e]
  ] ||
 
-B.f-,B.t-; [B.e];
+B.f-,B.t-; [ABCi.e];
 *[[ 1 -> B.t+
   : 1 -> B.f+
-  ]; [~B.e]; B.t-,B.f-; [B.e]
+  ]; [~ABCi.e]; B.t-,B.f-; [ABCi.e]
  ] ||
 
-Ci.f-,Ci.t-; [Ci.e];
+Ci.f-,Ci.t-; [ABCi.e];
 *[[ 1 -> Ci.t+
   : 1 -> Ci.f+
-  ]; [~Ci.e]; Ci.t-,Ci.f-; [Ci.e]
+  ]; [~ABCi.e]; Ci.t-,Ci.f-; [ABCi.e]
  ])'1
 
 ================================= Known Bugs ==================================
