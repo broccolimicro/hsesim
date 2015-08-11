@@ -81,6 +81,7 @@ void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> step
 	int seed = 0;
 	srand(seed);
 	int enabled = 0;
+	bool uptodate = false;
 	int step = 0;
 	int n = 0, n1 = 0;
 	char command[256];
@@ -156,7 +157,7 @@ void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> step
 			if (sscanf(command, "reset %d", &n) == 1 || sscanf(command, "r%d", &n) == 1)
 			{
 				sim = hse::simulator(&g, &v, g.reset[n], 0, false);
-				enabled = sim.enabled();
+				uptodate = false;
 				step = 0;
 				srand(seed);
 			}
@@ -183,14 +184,21 @@ void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> step
 
 			for (int i = 0; i < (int)tokens.size(); i++)
 			{
-				printf("%s {\n", export_expression(sim.encoding.flipped_mask(g.places[sim.local.tokens[tokens[i][0]].index].mask), v).to_string().c_str());
+				printf("%s {\n", export_composition(sim.encoding.flipped_mask(g.places[sim.local.tokens[tokens[i][0]].index].mask), v).to_string().c_str());
 				for (int j = 0; j < (int)tokens[i].size(); j++)
-					printf("\t(%d) P%d\t%s\n", tokens[i][j], sim.local.tokens[tokens[i][j]].index, export_node(hse::iterator(hse::place::type, sim.local.tokens[tokens[i][j]].index), g, v).c_str());
+					if (sim.local.tokens[tokens[i][j]].cause < 0)
+						printf("\t(%d) P%d\t%s\n", tokens[i][j], sim.local.tokens[tokens[i][j]].index, export_node(hse::iterator(hse::place::type, sim.local.tokens[tokens[i][j]].index), g, v).c_str());
 				printf("}\n");
 			}
 		}
 		else if ((strncmp(command, "enabled", 7) == 0 && length == 7) || (strncmp(command, "e", 1) == 0 && length == 1))
 		{
+			if (!uptodate)
+			{
+				enabled = sim.enabled();
+				uptodate = true;
+			}
+
 			for (int i = 0; i < enabled; i++)
 			{
 				if (g.transitions[sim.local.ready[i].index].behavior == hse::transition::active)
@@ -226,7 +234,7 @@ void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> step
 				sim.encoding = boolean::remote_assign(sim.encoding, sim.global, true);
 			}
 			assignment_parser.reset();
-			enabled = sim.enabled();
+			uptodate = false;
 			sim.interference_errors.clear();
 			sim.instability_errors.clear();
 			sim.mutex_errors.clear();
@@ -247,7 +255,7 @@ void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> step
 					sim.global = boolean::local_assign(sim.global, remote_action, true);
 				}
 				assignment_parser.reset();
-				enabled = sim.enabled();
+				uptodate = false;
 				sim.interference_errors.clear();
 				sim.instability_errors.clear();
 				sim.mutex_errors.clear();
@@ -258,46 +266,61 @@ void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> step
 			if (sscanf(command, "step %d", &n) != 1 && sscanf(command, "s%d", &n) != 1)
 				n = 1;
 
-			for (int i = 0; i < n && enabled != 0; i++)
+			for (int i = 0; i < n && (enabled != 0 || !uptodate); i++)
 			{
-				int firing = rand()%enabled;
-				if (step < (int)steps.size())
+				if (!uptodate)
 				{
-					for (firing = 0; firing < (int)sim.local.ready.size() &&
-					(sim.local.ready[firing].index != steps[step].index || sim.local.ready[firing].term != steps[step].term); firing++);
-
-					if (firing == (int)sim.local.ready.size())
-					{
-						printf("error: loaded simulation does not match HSE, please clear the simulation to continue\n");
-						break;
-					}
+					enabled = sim.enabled();
+					uptodate = true;
 				}
-				else
-					steps.push_back(hse::term_index(sim.local.ready[firing].index, sim.local.ready[firing].term));
 
-				if (g.transitions[sim.local.ready[firing].index].behavior == hse::transition::active)
-					printf("%d\tT%d.%d\t%s", step, sim.local.ready[firing].index, sim.local.ready[firing].term, export_composition(g.transitions[sim.local.ready[firing].index].local_action[sim.local.ready[firing].term], v).to_string().c_str());
-				else if (g.transitions[sim.local.ready[firing].index].behavior == hse::transition::passive)
-					printf("%d\tT%d\t[%s]", step, sim.local.ready[firing].index, export_expression(sim.local.ready[firing].guard_action, v).to_string().c_str());
+				if (enabled != 0)
+				{
+					int firing = rand()%enabled;
+					if (step < (int)steps.size())
+					{
+						for (firing = 0; firing < (int)sim.local.ready.size() &&
+						(sim.local.ready[firing].index != steps[step].index || sim.local.ready[firing].term != steps[step].term); firing++);
 
-				if (sim.local.ready[firing].vacuous)
-					printf("\t\t\t[vacuous]");
+						if (firing == (int)sim.local.ready.size())
+						{
+							printf("error: loaded simulation does not match HSE, please clear the simulation to continue\n");
+							break;
+						}
+					}
+					else
+						steps.push_back(hse::term_index(sim.local.ready[firing].index, sim.local.ready[firing].term));
 
-				printf("\n");
+					if (g.transitions[sim.local.ready[firing].index].behavior == hse::transition::active)
+						printf("%d\tT%d.%d\t%s -> %s", step, sim.local.ready[firing].index, sim.local.ready[firing].term, export_expression(sim.local.ready[firing].guard_action, v).to_string().c_str(), export_composition(g.transitions[sim.local.ready[firing].index].local_action[sim.local.ready[firing].term], v).to_string().c_str());
+					else if (g.transitions[sim.local.ready[firing].index].behavior == hse::transition::passive)
+						printf("%d\tT%d\t[%s]", step, sim.local.ready[firing].index, export_expression(sim.local.ready[firing].guard_action, v).to_string().c_str());
 
-				sim.fire(firing);
+					if (sim.local.ready[firing].vacuous)
+						printf("\t\t\t[vacuous]");
 
-				enabled = sim.enabled();
-				sim.interference_errors.clear();
-				sim.instability_errors.clear();
-				sim.mutex_errors.clear();
-				step++;
+					printf("\n");
+
+					sim.fire(firing);
+
+					uptodate = false;
+					sim.interference_errors.clear();
+					sim.instability_errors.clear();
+					sim.mutex_errors.clear();
+					step++;
+				}
 			}
 		}
 		else if (strncmp(command, "fire", 4) == 0 || strncmp(command, "f", 1) == 0)
 		{
 			if (sscanf(command, "fire %d", &n) == 1 || sscanf(command, "f%d", &n) == 1)
 			{
+				if (!uptodate)
+				{
+					enabled = sim.enabled();
+					uptodate = true;
+				}
+
 				if (n < enabled)
 				{
 					if (step < (int)steps.size())
@@ -313,7 +336,7 @@ void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> step
 
 						sim.fire(n);
 
-						enabled = sim.enabled();
+						uptodate = false;
 						sim.interference_errors.clear();
 						sim.instability_errors.clear();
 						sim.mutex_errors.clear();
@@ -456,7 +479,6 @@ int main(int argc, char **argv)
 		while (hse_tokens.decrement(__FILE__, __LINE__))
 		{
 			parse_chp::composition syntax(hse_tokens);
-			cout << syntax.to_string() << endl;
 			g.merge(hse::parallel, import_graph(syntax, v, 0, &hse_tokens, true), !first);
 
 			hse_tokens.increment(false);
