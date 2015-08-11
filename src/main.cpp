@@ -89,12 +89,17 @@ void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> step
 	FILE *script = stdin;
 	while (!done)
 	{
-		printf("(hsesim)");
-		fflush(stdout);
+		if (script == stdin)
+		{
+			printf("(hsesim)");
+			fflush(stdout);
+		}
 		if (fgets(command, 255, script) == NULL && script != stdin)
 		{
 			fclose(script);
 			script = stdin;
+			printf("(hsesim)");
+			fflush(stdout);
 			if (fgets(command, 255, script) == NULL)
 				exit(0);
 		}
