@@ -371,32 +371,6 @@ If you want to see what this graph looks like then execute this:
 
 dot -Tpng file.dot > file.png
 
-=========================== Special Environment ===============================
-
-This only applies during a state space elaboration:
-
-hsesim file.hse -eg file.dot
-
-HSE can get very complex and it becomes very easy to represent circuits with
-trillions of states. This means that it can start to take a long time to
-explore the state space. In order to counter act this problem, there is support
-for simulating multiple states within the environment simultaneously. Normally
-when you specify processes, you compose them in parallel with a composition
-operator like so (P0||P1||...||Pn). However, Lets say you want to treat the
-processes Pi,Pi+1,...,Pn as special environment processes. Simply delete one
-of the composition operators like so (P0||P1||...||Pi-1 Pi||Pi+1||...||Pn).
-All of the processes Pi...Pn will be collapsed.
-
-  No two special environment processes may communicate. No channel actions, no
-  shared variables. A special environment process may communicate with a normal
-  process.
-
-  A special environment process may not be in the same isochronic region as a
-  normal process.
-
-  You will not receive any state information about the special environment
-  processes.
-
 =============================== Reset Behavior ================================
 
 Because reset behavior can be a complex thing that has a multitude of timing
@@ -444,7 +418,7 @@ R.f+,R.t-,L.e+,en+; [R.e&~L.f&~L.t];
      @ [~R.e]; R.f-,R.t- ||
      [~L.f & ~L.t]; L.e+ @
   ); en+
- ]
+ ] ||
 
 L.f-,L.t-; [L.e];  *[[1->L.f+:1->L.t+]; [~L.e]; L.f-,L.t-; [L.e]]||
 R.e+; [R.f&~R.t]; *[[R.f|R.t]; R.e-; [~R.f&~R.t]; R.e+]
@@ -516,7 +490,7 @@ S.f-,S.t-,Co.f-,Co.t-,ABCi.e+; [S.e&Co.e&~A.f&~A.t&~B.f&~B.t&~Ci.f&~Ci.t];
         [~Co.e -> Co.t-,Co.f-]
     ); [~A.t & ~A.f & ~B.t & ~B.f & ~Ci.t & ~Ci.f];
     ABCi.e+
-]
+] ||
 
 (S.e+; [~S.f&~S.t]; *[[S.t | S.f]; S.e-; [~S.t & ~S.f]; S.e+] ||
 

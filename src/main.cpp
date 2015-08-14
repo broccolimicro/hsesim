@@ -12,6 +12,7 @@
 #include <parse_chp/composition.h>
 #include <hse/graph.h>
 #include <hse/simulator.h>
+#include <hse/elaborator.h>
 #include <interpret_hse/import.h>
 #include <interpret_hse/export.h>
 #include <interpret_boolean/export.h>
@@ -161,7 +162,7 @@ void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> step
 		{
 			if (sscanf(command, "reset %d", &n) == 1 || sscanf(command, "r%d", &n) == 1)
 			{
-				sim = hse::simulator(&g, &v, g.reset[n], 0, false);
+				sim = hse::simulator(&g, &v, g.reset[n]);
 				uptodate = false;
 				step = 0;
 				srand(seed);
@@ -173,11 +174,11 @@ void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> step
 		else if ((strncmp(command, "tokens", 6) == 0 && length == 6) || (strncmp(command, "t", 1) == 0 && length == 1))
 		{
 			vector<vector<int> > tokens;
-			for (int i = 0; i < (int)sim.local.tokens.size(); i++)
+			for (int i = 0; i < (int)sim.tokens.size(); i++)
 			{
 				bool found = false;
 				for (int j = 0; j < (int)tokens.size() && !found; j++)
-					if (g.places[sim.local.tokens[i].index].mask == g.places[sim.local.tokens[tokens[j][0]].index].mask)
+					if (g.places[sim.tokens[i].index].mask == g.places[sim.tokens[tokens[j][0]].index].mask)
 					{
 						tokens[j].push_back(i);
 						found = true;
@@ -189,10 +190,10 @@ void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> step
 
 			for (int i = 0; i < (int)tokens.size(); i++)
 			{
-				printf("%s {\n", export_composition(sim.encoding.flipped_mask(g.places[sim.local.tokens[tokens[i][0]].index].mask), v).to_string().c_str());
+				printf("%s {\n", export_composition(sim.encoding.flipped_mask(g.places[sim.tokens[tokens[i][0]].index].mask), v).to_string().c_str());
 				for (int j = 0; j < (int)tokens[i].size(); j++)
-					if (sim.local.tokens[tokens[i][j]].cause < 0)
-						printf("\t(%d) P%d\t%s\n", tokens[i][j], sim.local.tokens[tokens[i][j]].index, export_node(hse::iterator(hse::place::type, sim.local.tokens[tokens[i][j]].index), g, v).c_str());
+					if (sim.tokens[tokens[i][j]].cause < 0)
+						printf("\t(%d) P%d\t%s\n", tokens[i][j], sim.tokens[tokens[i][j]].index, export_node(hse::iterator(hse::place::type, sim.tokens[tokens[i][j]].index), g, v).c_str());
 				printf("}\n");
 			}
 		}
@@ -206,10 +207,10 @@ void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> step
 
 			for (int i = 0; i < enabled; i++)
 			{
-				if (g.transitions[sim.local.loaded[sim.local.ready[i].first].index].behavior == hse::transition::active)
-					printf("(%d) T%d.%d:%s     ", i, sim.local.loaded[sim.local.ready[i].first].index, sim.local.ready[i].second, export_composition(g.transitions[sim.local.loaded[sim.local.ready[i].first].index].local_action[sim.local.ready[i].second], v).to_string().c_str());
+				if (g.transitions[sim.loaded[sim.ready[i].first].index].behavior == hse::transition::active)
+					printf("(%d) T%d.%d:%s     ", i, sim.loaded[sim.ready[i].first].index, sim.ready[i].second, export_composition(g.transitions[sim.loaded[sim.ready[i].first].index].local_action[sim.ready[i].second], v).to_string().c_str());
 				else
-					printf("(%d) T%d.%d:[%s]     ", i, sim.local.loaded[sim.local.ready[i].first].index, sim.local.ready[i].second, export_expression(g.transitions[sim.local.loaded[sim.local.ready[i].first].index].local_action[sim.local.ready[i].second], v).to_string().c_str());
+					printf("(%d) T%d.%d:[%s]     ", i, sim.loaded[sim.ready[i].first].index, sim.ready[i].second, export_expression(g.transitions[sim.loaded[sim.ready[i].first].index].local_action[sim.ready[i].second], v).to_string().c_str());
 			}
 			printf("\n");
 		}
@@ -284,22 +285,22 @@ void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> step
 					int firing = rand()%enabled;
 					if (step < (int)steps.size())
 					{
-						for (firing = 0; firing < (int)sim.local.ready.size() &&
-						(sim.local.loaded[sim.local.ready[firing].first].index != steps[step].index || sim.local.ready[firing].second != steps[step].term); firing++);
+						for (firing = 0; firing < (int)sim.ready.size() &&
+						(sim.loaded[sim.ready[firing].first].index != steps[step].index || sim.ready[firing].second != steps[step].term); firing++);
 
-						if (firing == (int)sim.local.ready.size())
+						if (firing == (int)sim.ready.size())
 						{
 							printf("error: loaded simulation does not match HSE, please clear the simulation to continue\n");
 							break;
 						}
 					}
 					else
-						steps.push_back(hse::term_index(sim.local.loaded[sim.local.ready[firing].first].index, sim.local.ready[firing].second));
+						steps.push_back(hse::term_index(sim.loaded[sim.ready[firing].first].index, sim.ready[firing].second));
 
-					if (g.transitions[sim.local.loaded[sim.local.ready[firing].first].index].behavior == hse::transition::active)
-						printf("%d\tT%d.%d\t%s -> %s", step, sim.local.loaded[sim.local.ready[firing].first].index, sim.local.ready[firing].second, export_expression(sim.local.loaded[sim.local.ready[firing].first].guard_action, v).to_string().c_str(), export_composition(g.transitions[sim.local.loaded[sim.local.ready[firing].first].index].local_action[sim.local.ready[firing].second], v).to_string().c_str());
-					else if (g.transitions[sim.local.loaded[sim.local.ready[firing].first].index].behavior == hse::transition::passive)
-						printf("%d\tT%d\t[%s]", step, sim.local.loaded[sim.local.ready[firing].first].index, export_expression(sim.local.loaded[sim.local.ready[firing].first].guard_action, v).to_string().c_str());
+					if (g.transitions[sim.loaded[sim.ready[firing].first].index].behavior == hse::transition::active)
+						printf("%d\tT%d.%d\t%s -> %s", step, sim.loaded[sim.ready[firing].first].index, sim.ready[firing].second, export_expression(sim.loaded[sim.ready[firing].first].guard_action, v).to_string().c_str(), export_composition(g.transitions[sim.loaded[sim.ready[firing].first].index].local_action[sim.ready[firing].second], v).to_string().c_str());
+					else if (g.transitions[sim.loaded[sim.ready[firing].first].index].behavior == hse::transition::passive)
+						printf("%d\tT%d\t[%s]", step, sim.loaded[sim.ready[firing].first].index, export_expression(sim.loaded[sim.ready[firing].first].guard_action, v).to_string().c_str());
 
 					printf("\n");
 
@@ -329,12 +330,12 @@ void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> step
 						printf("error: deviating from loaded simulation, please clear the simulation to continue\n");
 					else
 					{
-						steps.push_back(hse::term_index(sim.local.loaded[sim.local.ready[n].first].index, sim.local.ready[n].second));
+						steps.push_back(hse::term_index(sim.loaded[sim.ready[n].first].index, sim.ready[n].second));
 
-						if (g.transitions[sim.local.loaded[sim.local.ready[n].first].index].behavior == hse::transition::active)
-							printf("%d\tT%d.%d\t%s\n", step, sim.local.loaded[sim.local.ready[n].first].index, sim.local.ready[n].second, export_composition(g.transitions[sim.local.loaded[sim.local.ready[n].first].index].local_action[sim.local.ready[n].second], v).to_string().c_str());
-						else if (g.transitions[sim.local.loaded[sim.local.ready[n].first].index].behavior == hse::transition::passive)
-							printf("%d\tT%d\t[%s]\n", step, sim.local.loaded[sim.local.ready[n].first].index, export_expression(sim.local.loaded[sim.local.ready[n].first].guard_action, v).to_string().c_str());
+						if (g.transitions[sim.loaded[sim.ready[n].first].index].behavior == hse::transition::active)
+							printf("%d\tT%d.%d\t%s\n", step, sim.loaded[sim.ready[n].first].index, sim.ready[n].second, export_composition(g.transitions[sim.loaded[sim.ready[n].first].index].local_action[sim.ready[n].second], v).to_string().c_str());
+						else if (g.transitions[sim.loaded[sim.ready[n].first].index].behavior == hse::transition::passive)
+							printf("%d\tT%d\t[%s]\n", step, sim.loaded[sim.ready[n].first].index, export_expression(sim.loaded[sim.ready[n].first].guard_action, v).to_string().c_str());
 
 						sim.fire(n);
 
@@ -475,17 +476,15 @@ int main(int argc, char **argv)
 		hse::graph g;
 		ucs::variable_set v;
 
-		bool first = true;
 		hse_tokens.increment(false);
 		hse_tokens.expect<parse_chp::composition>();
 		while (hse_tokens.decrement(__FILE__, __LINE__))
 		{
 			parse_chp::composition syntax(hse_tokens);
-			g.merge(hse::parallel, import_graph(syntax, v, 0, &hse_tokens, true), !first);
+			g.merge(hse::parallel, import_graph(syntax, v, 0, &hse_tokens, true));
 
 			hse_tokens.increment(false);
 			hse_tokens.expect<parse_chp::composition>();
-			first = false;
 		}
 
 		dot_tokens.increment(false);
@@ -493,11 +492,10 @@ int main(int argc, char **argv)
 		while (dot_tokens.decrement(__FILE__, __LINE__))
 		{
 			parse_dot::graph syntax(dot_tokens);
-			g.merge(hse::parallel, import_graph(syntax, v, &dot_tokens, true), !first);
+			g.merge(hse::parallel, import_graph(syntax, v, &dot_tokens, true));
 
 			dot_tokens.increment(false);
 			dot_tokens.expect<parse_dot::graph>();
-			first = false;
 		}
 		g.post_process(v, true);
 		g.check_variables(v);
@@ -511,10 +509,7 @@ int main(int argc, char **argv)
 
 		if (egfilename != "")
 		{
-			g.elaborate(v, true);
-
-			for (int i = 0; i < (int)g.places.size(); i++)
-				g.places[i].predicate.espresso();
+			elaborate(g, v, true);
 
 			FILE *fout = fopen(egfilename.c_str(), "w");
 			fprintf(fout, "%s", export_graph(g, v, labels).to_string().c_str());
@@ -523,21 +518,21 @@ int main(int argc, char **argv)
 
 		if (pnfilename != "")
 		{
-			hse::graph pn = g.to_petri_net();
+			hse::graph pn = to_petri_net(g, v, true);
 
 			FILE *fout = fopen(pnfilename.c_str(), "w");
 			fprintf(fout, "%s", export_graph(pn, v, labels).to_string().c_str());
 			fclose(fout);
 		}
 
-		/*if (sgfilename != "")
+		if (sgfilename != "")
 		{
-			hse::graph sg = g.to_state_graph(v);
+			hse::graph sg = to_state_graph(g, v, true);
 
 			FILE *fout = fopen(sgfilename.c_str(), "w");
 			fprintf(fout, "%s", export_graph(sg, v, labels).to_string().c_str());
 			fclose(fout);
-		}*/
+		}
 
 		if (sgfilename == "" && pnfilename == "" && egfilename == "" && gfilename == "")
 			real_time(g, v, steps);
