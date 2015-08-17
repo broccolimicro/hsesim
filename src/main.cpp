@@ -231,19 +231,16 @@ void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> step
 
 			assignment_parser.insert("", string(command).substr(i));
 			parse_expression::composition expr(assignment_parser);
-			boolean::cube action = import_cube(expr, v, 0, &assignment_parser, false);
-			boolean::cube remote_action = action.remote(v.get_groups());
+			boolean::cube local_action = import_cube(expr, v, 0, &assignment_parser, false);
+			boolean::cube remote_action = local_action.remote(v.get_groups());
 			if (assignment_parser.is_clean())
 			{
-				sim.encoding = boolean::local_assign(sim.encoding, action, true);
+				sim.encoding = boolean::local_assign(sim.encoding, local_action, true);
 				sim.global = boolean::local_assign(sim.global, remote_action, true);
 				sim.encoding = boolean::remote_assign(sim.encoding, sim.global, true);
 			}
 			assignment_parser.reset();
 			uptodate = false;
-			sim.interference_errors.clear();
-			sim.instability_errors.clear();
-			sim.mutex_errors.clear();
 		}
 		else if (strncmp(command, "force", 5) == 0)
 		{
@@ -253,8 +250,8 @@ void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> step
 			{
 				assignment_parser.insert("", string(command).substr(6));
 				parse_expression::composition expr(assignment_parser);
-				boolean::cube action = import_cube(expr, v, 0, &assignment_parser, false);
-				boolean::cube remote_action = action.remote(v.get_groups());
+				boolean::cube local_action = import_cube(expr, v, 0, &assignment_parser, false);
+				boolean::cube remote_action = local_action.remote(v.get_groups());
 				if (assignment_parser.is_clean())
 				{
 					sim.encoding = boolean::local_assign(sim.encoding, remote_action, true);
@@ -262,9 +259,6 @@ void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> step
 				}
 				assignment_parser.reset();
 				uptodate = false;
-				sim.interference_errors.clear();
-				sim.instability_errors.clear();
-				sim.mutex_errors.clear();
 			}
 		}
 		else if (strncmp(command, "step", 4) == 0 || strncmp(command, "s", 1) == 0)
@@ -298,11 +292,9 @@ void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> step
 						steps.push_back(hse::term_index(sim.loaded[sim.ready[firing].first].index, sim.ready[firing].second));
 
 					if (g.transitions[sim.loaded[sim.ready[firing].first].index].behavior == hse::transition::active)
-						printf("%d\tT%d.%d\t%s -> %s", step, sim.loaded[sim.ready[firing].first].index, sim.ready[firing].second, export_expression(sim.loaded[sim.ready[firing].first].guard_action, v).to_string().c_str(), export_composition(g.transitions[sim.loaded[sim.ready[firing].first].index].local_action[sim.ready[firing].second], v).to_string().c_str());
+						printf("%d\tT%d.%d\t%s -> %s\n", step, sim.loaded[sim.ready[firing].first].index, sim.ready[firing].second, export_expression(sim.loaded[sim.ready[firing].first].guard_action, v).to_string().c_str(), export_composition(g.transitions[sim.loaded[sim.ready[firing].first].index].local_action[sim.ready[firing].second], v).to_string().c_str());
 					else if (g.transitions[sim.loaded[sim.ready[firing].first].index].behavior == hse::transition::passive)
-						printf("%d\tT%d\t[%s]", step, sim.loaded[sim.ready[firing].first].index, export_expression(sim.loaded[sim.ready[firing].first].guard_action, v).to_string().c_str());
-
-					printf("\n");
+						printf("%d\tT%d\t[%s]\n", step, sim.loaded[sim.ready[firing].first].index, export_expression(sim.loaded[sim.ready[firing].first].guard_action, v).to_string().c_str());
 
 					sim.fire(firing);
 
@@ -333,7 +325,7 @@ void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> step
 						steps.push_back(hse::term_index(sim.loaded[sim.ready[n].first].index, sim.ready[n].second));
 
 						if (g.transitions[sim.loaded[sim.ready[n].first].index].behavior == hse::transition::active)
-							printf("%d\tT%d.%d\t%s\n", step, sim.loaded[sim.ready[n].first].index, sim.ready[n].second, export_composition(g.transitions[sim.loaded[sim.ready[n].first].index].local_action[sim.ready[n].second], v).to_string().c_str());
+							printf("%d\tT%d.%d\t%s -> %s\n", step, sim.loaded[sim.ready[n].first].index, sim.ready[n].second, export_expression(sim.loaded[sim.ready[n].first].guard_action, v).to_string().c_str(), export_composition(g.transitions[sim.loaded[sim.ready[n].first].index].local_action[sim.ready[n].second], v).to_string().c_str());
 						else if (g.transitions[sim.loaded[sim.ready[n].first].index].behavior == hse::transition::passive)
 							printf("%d\tT%d\t[%s]\n", step, sim.loaded[sim.ready[n].first].index, export_expression(sim.loaded[sim.ready[n].first].guard_action, v).to_string().c_str());
 
