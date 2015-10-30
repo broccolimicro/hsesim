@@ -68,7 +68,7 @@ R.e+; [~R.f&~R.t]; *[[R.f|R.t]; R.e-; [~R.f&~R.t]; R.e+])'1
 To begin, view set of possible reset states and then pick one.
 
 (hsesim)r
-(0) {P0 P9 P15} {} ~R.f&~R.t&L.e&R.e&~L.f&~L.t&~L.f'1&~L.t'1&L.e'1&R.e'1&~R.f'1&~R.t'1
+(0) {0 9 15} ~R.f&~R.t&L.e&R.e&~L.f&~L.t&~L.f'1&~L.t'1&L.e'1&R.e'1&~R.f'1&~R.t'1
 (hsesim)r0
 
 You'll notice the ID's P0, P9, and P15. These refer to specific semicolons or
@@ -83,30 +83,30 @@ Now that you have set the current state to a reset state, you may take a look
 at the current state.
 
 (hsesim)t
-~R.f&~R.t&L.e&R.e&~L.f&~L.t {
+R.f-,R.t-,L.e+,R.e+,L.f-,L.t- {
         (0) P0  L.e+ ; [R.e&L.f->...[]R.e&L.t->...]
 }
-~L.f'1&~L.t'1&L.e'1 {
+L.f'1-,L.t'1-,L.e'1+ {
         (1) P9  [L.e'1 -> [1->L.f'1+...[]1->L.t'1+...]
 }
-R.e'1&~R.f'1&~R.t'1 {
-        (2) P15 R.e'1+ ; [R.f'1]
+R.e'1+,R.f'1-,R.t'1- {
+        (2) P15 R.e'1+ ; [R.f'1|R.t'1]
 }
 
 You can view the list of enabled transitions and fire one.
 
 (hsesim)e
-(0) T9.0:L.f'1+     (1) T10.0:L.t'1+
+(0) T10.0:L.t'1+     (1) T9.0:L.f'1+
 (hsesim)f1
-0       T10.0   L.t'1+
+0       T9.0    1 -> L.f'1+
 (hsesim)e
-(0) T2.0:[R.e&L.t]
+(0) T1.0:R.f+
 (hsesim)f0
-1       T2      [R.e&L.t]
+1       T1.0    R.e&L.f -> R.f+
 (hsesim)e
-(0) T3.0:R.t+
+(0) T4.0:L.e-     (1) T16.0:R.e'1-
 (hsesim)f0
-2       T3.0    R.t+
+2       T4.0    R.f -> L.e-
 
 You may also step through the simulation. This has two functions. As you
 progress through te simulation, the simulator will remember all of the
@@ -118,35 +118,35 @@ it will continue to step randomly. This will execute the transitions in a
 transition order.
 
 (hsesim)e
-(0) T9.0:L.f'1+     (1) T10.0:L.t'1+
+(0) T10.0:L.t'1+     (1) T9.0:L.f'1+
 (hsesim)f1
-0       T10.0   L.t'1+
+0       T9.0    1 -> L.f'1+
 (hsesim)e
-(0) T2.0:[R.e&L.t]
+(0) T1.0:R.f+
 (hsesim)f0
-1       T2      [R.e&L.t]
+1       T1.0    R.e&L.f -> R.f+
 (hsesim)e
-(0) T3.0:R.t+
+(0) T4.0:L.e-     (1) T16.0:R.e'1-
 (hsesim)f0
-2       T3.0    R.t+
+2       T4.0    R.f -> L.e-
 (hsesim)s6
-3       T15     [R.t'1]
-4       T4.0    L.e-
-5       T16.0   R.e'1-
-6       T11     [L.t'1&~L.e'1]
-7       T13.0   L.t'1-
-8       T12.0   L.f'1-                  [vacuous]
+3       T16.0   R.f'1 -> R.e'1-
+4       T12.0   L.f'1&~L.e'1 -> L.f'1-
+5       T6.0    ~L.e&~R.e&~L.f&~L.t -> R.f-
+6       T8.0    ~R.f&~R.t -> L.e+
+7       T9.0    ~L.f'1&~L.t'1&L.e'1 -> L.f'1+
+8       T18.0   ~R.e'1&~R.f'1&~R.t'1 -> R.e'1+
 (hsesim)r0
 (hsesim)s9
-0       T10.0   L.t'1+
-1       T2      [R.e&L.t]
-2       T3.0    R.t+
-3       T15     [R.t'1]
-4       T4.0    L.e-
-5       T16.0   R.e'1-
-6       T11     [L.t'1&~L.e'1]
-7       T13.0   L.t'1-
-8       T12.0   L.f'1-                  [vacuous]
+0       T9.0    1 -> L.f'1+
+1       T1.0    R.e&L.f -> R.f+
+2       T4.0    R.f -> L.e-
+3       T16.0   R.f'1 -> R.e'1-
+4       T12.0   L.f'1&~L.e'1 -> L.f'1-
+5       T6.0    ~L.e&~R.e&~L.f&~L.t -> R.f-
+6       T8.0    ~R.f&~R.t -> L.e+
+7       T9.0    ~L.f'1&~L.t'1&L.e'1 -> L.f'1+
+8       T18.0   ~R.e'1&~R.f'1&~R.t'1 -> R.e'1+
 
 You can save this list of transitions to a file and load it up in a later 
 simulation.
@@ -156,15 +156,15 @@ simulation.
 (hsesim)load test
 (hsesim)r0
 (hsesim)s9
-0       T10.0   L.t'1+
-1       T2      [R.e&L.t]
-2       T3.0    R.t+
-3       T15     [R.t'1]
-4       T4.0    L.e-
-5       T16.0   R.e'1-
-6       T11     [L.t'1&~L.e'1]
-7       T13.0   L.t'1-
-8       T12.0   L.f'1-                  [vacuous]
+0       T9.0    1 -> L.f'1+
+1       T1.0    R.e&L.f -> R.f+
+2       T4.0    R.f -> L.e-
+3       T16.0   R.f'1 -> R.e'1-
+4       T12.0   L.f'1&~L.e'1 -> L.f'1-
+5       T6.0    ~L.e&~R.e&~L.f&~L.t -> R.f-
+6       T8.0    ~R.f&~R.t -> L.e+
+7       T9.0    ~L.f'1&~L.t'1&L.e'1 -> L.f'1+
+8       T18.0   ~R.e'1&~R.f'1&~R.t'1 -> R.e'1+
 
 If you no longer want to simulate the future steps, you may clear them. This 
 will remove any transitions in the list ahead of your current step. However,
@@ -173,28 +173,28 @@ transitions before your current step will still be remembered.
 (hsesim)load test
 (hsesim)r0
 (hsesim)s9
-0       T10.0   L.t'1+
-1       T2      [R.e&L.t]
-2       T3.0    R.t+
-3       T15     [R.t'1]
-4       T4.0    L.e-
-5       T16.0   R.e'1-
-6       T11     [L.t'1&~L.e'1]
-7       T13.0   L.t'1-
-8       T12.0   L.f'1-                  [vacuous]
+0       T9.0    1 -> L.f'1+
+1       T1.0    R.e&L.f -> R.f+
+2       T4.0    R.f -> L.e-
+3       T16.0   R.f'1 -> R.e'1-
+4       T12.0   L.f'1&~L.e'1 -> L.f'1-
+5       T6.0    ~L.e&~R.e&~L.f&~L.t -> R.f-
+6       T8.0    ~R.f&~R.t -> L.e+
+7       T9.0    ~L.f'1&~L.t'1&L.e'1 -> L.f'1+
+8       T18.0   ~R.e'1&~R.f'1&~R.t'1 -> R.e'1+
 (hsesim)r0
 (hsesim)s3
-0       T10.0   L.t'1+
-1       T2      [R.e&L.t]
-2       T3.0    R.t+
+0       T9.0    1 -> L.f'1+
+1       T1.0    R.e&L.f -> R.f+
+2       T4.0    R.f -> L.e-
 (hsesim)clear
 (hsesim)s6
-3       T15     [R.t'1]
-4       T16.0   R.e'1-
-5       T4.0    L.e-
-6       T11     [L.t'1&~L.e'1]
-7       T12.0   L.f'1-                  [vacuous]
-8       T13.0   L.t'1-
+3       T12.0   L.f'1&~L.e'1 -> L.f'1-
+4       T16.0   R.f'1 -> R.e'1-
+5       T6.0    ~L.e&~R.e&~L.f&~L.t -> R.f-
+6       T8.0    ~R.f&~R.t -> L.e+
+7       T9.0    ~L.f'1&~L.t'1&L.e'1 -> L.f'1+
+8       T18.0   ~R.e'1&~R.f'1&~R.t'1 -> R.e'1+
 
 =================================== Syntax ====================================
 

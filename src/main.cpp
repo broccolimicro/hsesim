@@ -354,18 +354,16 @@ int main(int argc, char **argv)
 	configuration config;
 	config.set_working_directory(argv[0]);
 	tokenizer hse_tokens;
-	tokenizer dot_tokens;
+	tokenizer astg_tokens;
 	parse_chp::composition::register_syntax(hse_tokens);
-	parse_dot::graph::register_syntax(dot_tokens);
-	hse_tokens.register_comment<parse::block_comment>();
-	hse_tokens.register_comment<parse::line_comment>();
+	parse_astg::graph::register_syntax(astg_tokens);
+	hse_tokens.register_token<parse::block_comment>(false);
+	hse_tokens.register_token<parse::line_comment>(false);
 	string sgfilename = "";
 	string pnfilename = "";
 	string egfilename = "";
 	string gfilename = "";
 	vector<hse::term_index> steps;
-
-	bool labels = false;
 
 	for (int i = 1; i < argc; i++)
 	{
@@ -428,8 +426,6 @@ int main(int argc, char **argv)
 				return 1;
 			}
 		}
-		else if (arg == "--labels" || arg == "-l")
-			labels = true;
 		else
 		{
 			string filename = argv[i];
@@ -439,8 +435,8 @@ int main(int argc, char **argv)
 				format = filename.substr(dot+1);
 			if (format == "hse")
 				config.load(hse_tokens, filename, "");
-			else if (format == "dot")
-				config.load(dot_tokens, filename, "");
+			else if (format == "astg")
+				config.load(astg_tokens, filename, "");
 			else if (format == "sim")
 			{
 				FILE *seq = fopen(argv[i], "r");
@@ -463,7 +459,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (is_clean() && hse_tokens.segments.size() > 0)
+	if (is_clean() && hse_tokens.segments.size() + astg_tokens.segments.size() > 0)
 	{
 		hse::graph g;
 		ucs::variable_set v;
@@ -479,15 +475,15 @@ int main(int argc, char **argv)
 			hse_tokens.expect<parse_chp::composition>();
 		}
 
-		dot_tokens.increment(false);
-		dot_tokens.expect<parse_dot::graph>();
-		while (dot_tokens.decrement(__FILE__, __LINE__))
+		astg_tokens.increment(false);
+		astg_tokens.expect<parse_astg::graph>();
+		while (astg_tokens.decrement(__FILE__, __LINE__))
 		{
-			parse_dot::graph syntax(dot_tokens);
-			g.merge(hse::parallel, import_graph(syntax, v, &dot_tokens, true));
+			parse_astg::graph syntax(astg_tokens);
+			g.merge(hse::parallel, import_graph(syntax, v, &astg_tokens));
 
-			dot_tokens.increment(false);
-			dot_tokens.expect<parse_dot::graph>();
+			astg_tokens.increment(false);
+			astg_tokens.expect<parse_astg::graph>();
 		}
 		g.post_process(v, true);
 		g.check_variables(v);
@@ -495,7 +491,7 @@ int main(int argc, char **argv)
 		if (gfilename != "")
 		{
 			FILE *fout = fopen(gfilename.c_str(), "w");
-			fprintf(fout, "%s", export_graph(g, v, labels).to_string().c_str());
+			fprintf(fout, "%s", export_astg(g, v).to_string().c_str());
 			fclose(fout);
 		}
 
@@ -504,7 +500,7 @@ int main(int argc, char **argv)
 			elaborate(g, v, true);
 
 			FILE *fout = fopen(egfilename.c_str(), "w");
-			fprintf(fout, "%s", export_graph(g, v, labels).to_string().c_str());
+			fprintf(fout, "%s", export_astg(g, v).to_string().c_str());
 			fclose(fout);
 		}
 
@@ -513,7 +509,7 @@ int main(int argc, char **argv)
 			hse::graph pn = to_petri_net(g, v, true);
 
 			FILE *fout = fopen(pnfilename.c_str(), "w");
-			fprintf(fout, "%s", export_graph(pn, v, labels).to_string().c_str());
+			fprintf(fout, "%s", export_astg(pn, v).to_string().c_str());
 			fclose(fout);
 		}
 
@@ -522,7 +518,7 @@ int main(int argc, char **argv)
 			hse::graph sg = to_state_graph(g, v, true);
 
 			FILE *fout = fopen(sgfilename.c_str(), "w");
-			fprintf(fout, "%s", export_graph(sg, v, labels).to_string().c_str());
+			fprintf(fout, "%s", export_astg(sg, v).to_string().c_str());
 			fclose(fout);
 		}
 
