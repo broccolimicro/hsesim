@@ -208,9 +208,14 @@ void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> step
 			for (int i = 0; i < enabled; i++)
 			{
 				if (g.transitions[sim.loaded[sim.ready[i].first].index].behavior == hse::transition::active)
-					printf("(%d) T%d.%d:%s     ", i, sim.loaded[sim.ready[i].first].index, sim.ready[i].second, export_composition(g.transitions[sim.loaded[sim.ready[i].first].index].local_action[sim.ready[i].second], v).to_string().c_str());
+				{
+					printf("(%d) T%d.%d:%s", i, sim.loaded[sim.ready[i].first].index, sim.ready[i].second, export_composition(g.transitions[sim.loaded[sim.ready[i].first].index].local_action[sim.ready[i].second], v).to_string().c_str());
+					if (!sim.loaded[sim.ready[i].first].stable)
+						printf("\tunstable");
+					printf("\n");
+				}
 				else
-					printf("(%d) T%d.%d:[%s]     ", i, sim.loaded[sim.ready[i].first].index, sim.ready[i].second, export_expression(g.transitions[sim.loaded[sim.ready[i].first].index].local_action[sim.ready[i].second], v).to_string().c_str());
+					printf("(%d) T%d.%d:[%s]\n", i, sim.loaded[sim.ready[i].first].index, sim.ready[i].second, export_expression(g.transitions[sim.loaded[sim.ready[i].first].index].local_action[sim.ready[i].second], v).to_string().c_str());
 			}
 			printf("\n");
 		}
