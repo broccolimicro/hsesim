@@ -78,7 +78,7 @@ To begin, view set of possible reset states and then pick one.
 (hsesim)r0
 ```
 
-You'll notice the ID's P0, P9, and P15. These refer to specific semicolons or
+You'll notice the ID's `P0`, `P9`, and `P15`. These refer to specific semicolons or
 "places" in the hse. To see what these labels refer to, you may run the
 following commands outside of the interactive simulation environment:
 
@@ -87,7 +87,7 @@ hsesim file.hse -g file.dot -l
 dot -Tpng file.dot > file.png
 ```
 
-The '-l' option adds labels to all of the places, transitions, and arcs. 
+The `-l` option adds labels to all of the places, transitions, and arcs. 
 Now that you have set the current state to a reset state, you may take a look
 at the current state.
 
@@ -242,8 +242,8 @@ x-
 x+
 ```
 
-Every variable in HSE represents a node in the circuit. "x-" sets the voltage
-on that node to GND and "x+" sets the voltage on that node to VDD.
+Every variable in HSE represents a node in the circuit. `x-` sets the voltage
+on that node to GND and `x+` sets the voltage on that node to VDD.
 
 -------------------------------------------------------------------------------
 
@@ -251,7 +251,7 @@ on that node to GND and "x+" sets the voltage on that node to VDD.
 P0 || P1 || ... || Pn
 ```
 
-Parallel composition: do P0, P1, ..., and Pn in any interleaving.
+Parallel composition: do `P0`, `P1`, ..., and `Pn` in any interleaving.
 
 -------------------------------------------------------------------------------
 
@@ -259,7 +259,7 @@ Parallel composition: do P0, P1, ..., and Pn in any interleaving.
 P0;P1;...;Pn
 ```
 
-Sequential composition: do P0, then P1, then ..., then Pn.
+Sequential composition: do `P0`, then `P1`, then ..., then `Pn`.
 
 -------------------------------------------------------------------------------
 
@@ -287,23 +287,23 @@ Internal parallel composition is the same as parallel composition.
 [G]
 ```
 
-The selection composition represents choice. G0, G1, ..., Gn are called guards. 
+The selection composition represents choice. `G0`, `G1`, ..., `Gn` are called guards. 
 They are boolean expressions that represent the condition of the selection and 
-P0,P1,...,Pn are the processes that are executed for each condition.
+`P0`, `P1`, ..., `Pn` are the processes that are executed for each condition.
 
 A selection statement can either be deterministic as represented by the thick
-bar operator '[]' or non-deterministic as represented by the thin bar operator 
-':'. If it is a deterministic selection, then the guards are guaranteed by the
+bar operator `[]` or non-deterministic as represented by the thin bar operator 
+`:`. If it is a deterministic selection, then the guards are guaranteed by the
 user to be mutually exclusive so only one can ever evaluate to true at any
 given time. Meanwhile if it is non-deterministic, then an arbiter or in
 some extreme cases, a synchronizer, must be used to guarantee the mutual
 exclusion of the selection. Ultimately the selection operator implements the
 following:
 
-If G0 do P0, if G1 do P1, ... If Gn do Pn, else wait.
+If `G0` do `P0`, if `G1` do `P1`, ... If `Gn` do `Pn`, else wait.
 
 If there is no process specified as in the third example, then the process
-is just a 'skip'. This is shorthand for a wait until operation, also
+is just a `skip`. This is shorthand for a wait until operation, also
 known simply as a 'guard'.
 
 -------------------------------------------------------------------------------
@@ -327,32 +327,32 @@ known simply as a 'guard'.
 Repetitive selection behaves almost the same as the non-repetitive selection
 statement. Think of it like a while loop.
 
-While one of the guards (G0,G1,...,Gn) is true, execute the associated process
-(P0,P1,...,Pn). Else, exit the loop.
+While one of the guards `(G0,G1,...,Gn)` is true, execute the associated process
+`(P0,P1,...,Pn)`. Else, exit the loop.
 
 If the guard is not specified, then the guard is assumed to be '1'. This
 is shorthand for a loop that will never exit.
 
 ## Internal Representation of State
 
-The state of a node is represented by four basic values (-,0,1,X). '-' means
+The state of a node is represented by four basic values `(-,0,1,X)`. `-` means
 that the node is stable at either GND or VDD but the process doesn't know
-which. '0' means the node is stable at GND. '1' means the node is stable at
-VDD. And 'X' means the node is unstable or metastable (some unknown value
+which. `0` means the node is stable at GND. `1` means the node is stable at
+VDD. And `X` means the node is unstable or metastable (some unknown value
 between GND and VDD).
 
-(x+) drives the node 'x' to '1' and (x-) drives the node 'x' to '0'. If two 
-assignments interfere as in (x+,x-), then the value of the node 'x' will
-be driven to 'X'. If an assignment is unstable as in ([x];y+||x-), then the
-node 'y' will be drive to 'X'.  
+`a+` drives the node `a` to `1` and `a-` drives the node `a` to `0`. If two 
+assignments interfere as in `a+,a-`, then the value of the node `a` will
+be driven to `X`. If an assignment is unstable as in `[a];b+||a-`, then the
+node `b` will be drive to `X`.  
 
-If there is a selection like ([1->x+:1->x-];y-), then at the semicolon before
-y-, the value of the node 'x' will be '-'. (Yes I know this example does not
+If there is a selection like `[1->a+:1->a-];b-`, then at the semicolon before
+`b-`, the value of the node `a` will be `-`. (Yes I know this example does not
 represent a real circuit because you don't know when the selection has
 completed).
 
-If a node has a value of 'X', then it will propagate as expected. For example
-in (y-; [x]; y+) if the node 'x' is unstable, then after y+, the node 'y' will
+If a node has a value of `X`, then it will propagate as expected. For example
+in `b-; [a]; b+` if the node `a` is unstable, then after `b+`, the node `b` will
 also be unstable.
 
 ## Isochronic Regions
@@ -369,7 +369,7 @@ isochronic region with the following syntax:
 P'region
 ```
 
-Where P is a process or node reference and 'region' is an integer representing
+Where `P` is a process or node reference and 'region' is an integer representing
 the name of the region. For example:
 
 ```
@@ -386,11 +386,11 @@ x'1+
 [x'1 & y'2]; z-
 ```
 
-If there are two processes in two isochronic regions like (x-;y+;P)'0 || ([y]; x+)'1,
-then during the process P, the value of the node 'x' will be '-' because the
-process on the left knows that 'x' was '0' but that it will change to '1'. It
-just doesn't know when. Meanwhil in the process on the right, the value of 'x'
-will start at '-' and transition to '1' after the assignment x+.
+If there are two processes in two isochronic regions like `(a-;b+;P)'0 || ([b]; a+)'1`,
+then during the process `P`, the value of the node `a` will be `-` because the
+process on the left knows that `a` was `0` but that it will change to `1`. It
+just doesn't know when. Meanwhile in the process on the right, the value of `a`
+will start at `-` and transition to `1` after the assignment `a+`.
 
 ## Non-Properly Nested HSE
 
@@ -473,7 +473,7 @@ L.f-,L.t-; [L.e];  *[[1->L.f+:1->L.t+]; [~L.e]; L.f-,L.t-; [L.e]]||
 R.e+; [R.f&~R.t]; *[[R.f|R.t]; R.e-; [~R.f&~R.t]; R.e+]
 ```
 
-In this system, the '@' symbol represents a reset token at the nearest
+In this system, the `@` symbol represents a reset token at the nearest
 semicolon for current loop. So if there are multiple loops and you put a reset
 token on the inner most loop, that loop will reset there on every iteration of
 the outer loop.
