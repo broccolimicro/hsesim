@@ -9,7 +9,7 @@ A simulation environment for HSE processes.
  - `*.sim`           Load a sequence of transitions to operate on
 
 **General Options**:
- - `-h,`--help`      Display this information
+ - `-h`,`--help`      Display this information
  -    `--version`   Display version information
  - `-v`,`--verbose`   Display verbose messages
  - `-d`,`--debug`     Display internal debugging messages
