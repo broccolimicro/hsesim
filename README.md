@@ -1,5 +1,6 @@
 # hsesim
-A simulation environment for HSE processes.
+
+A simulation environment for Handshaking Expansions (HSE) that describe [Quasi-Delay Insensitive (QDI)](https://en.wikipedia.org/wiki/Quasi-delay-insensitive_circuit) circuits.
 
 **Usage**: `hsesim [options] file...`
 
