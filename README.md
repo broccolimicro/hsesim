@@ -2,6 +2,8 @@
 
 A simulation environment for Handshaking Expansions (HSE) that describe [Quasi-Delay Insensitive (QDI)](https://en.wikipedia.org/wiki/Quasi-delay-insensitive_circuit) circuits.
 
+To compile from source, see the [Haystack](https://github.com/nbingham1/haystack) project.
+
 **Usage**: `hsesim [options] file...`
 
 **Supported file formats**:
