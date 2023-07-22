@@ -491,7 +491,7 @@ int main(int argc, char **argv)
 
 		if (egfilename != "")
 		{
-			elaborate(g, v, true);
+			elaborate(g, v, false, true);
 
 			FILE *fout = fopen(egfilename.c_str(), "w");
 			fprintf(fout, "%s", export_astg(g, v).to_string().c_str());
