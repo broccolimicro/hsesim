@@ -192,8 +192,7 @@ void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> step
 			{
 				printf("%s {\n", export_composition(sim.encoding.flipped_mask(g.places[sim.tokens[tokens[i][0]].index].mask), v).to_string().c_str());
 				for (int j = 0; j < (int)tokens[i].size(); j++)
-					if (sim.tokens[tokens[i][j]].cause < 0)
-						printf("\t(%d) P%d\t%s\n", tokens[i][j], sim.tokens[tokens[i][j]].index, export_node(hse::iterator(hse::place::type, sim.tokens[tokens[i][j]].index), g, v).c_str());
+					printf("\t(%d) P%d\t%s\n", tokens[i][j], sim.tokens[tokens[i][j]].index, export_node(hse::iterator(hse::place::type, sim.tokens[tokens[i][j]].index), g, v).c_str());
 				printf("}\n");
 			}
 		}
@@ -207,7 +206,7 @@ void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> step
 
 			for (int i = 0; i < enabled; i++)
 			{
-				printf("(%d) T%d.%d:%s->%s\n", i, sim.loaded[sim.ready[i].first].index, sim.ready[i].second, export_expression(g.transitions[sim.loaded[sim.ready[i].first].index].local_action[sim.ready[i].second], v).to_string().c_str(), export_composition(g.transitions[sim.loaded[sim.ready[i].first].index].local_action[sim.ready[i].second], v).to_string().c_str());
+				printf("(%d) T%d.%d:%s->%s\n", i, sim.loaded[sim.ready[i].first].index, sim.ready[i].second, export_expression(g.transitions[sim.loaded[sim.ready[i].first].index].guard, v).to_string().c_str(), export_composition(g.transitions[sim.loaded[sim.ready[i].first].index].local_action[sim.ready[i].second], v).to_string().c_str());
 				if (!sim.loaded[sim.ready[i].first].stable)
 					printf("\tunstable");
 				printf("\n");
