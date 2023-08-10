@@ -4,5 +4,6 @@
 *.hse
 *.o
 *.sim
+*.prs
 hsesim
 build
