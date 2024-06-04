@@ -6,4 +6,5 @@
 *.sim
 *.prs
 hsesim
+test
 build
