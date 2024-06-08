@@ -10,7 +10,7 @@ GTEST_L      := -L$(GTEST)/build/lib -L.
 INCLUDE_PATHS = $(DEPEND:%=-I../../lib/%) -I.
 LIBRARY_PATHS = $(DEPEND:%=-L../../lib/%) -I.
 LIBRARIES     = $(DEPEND:%=-l%)
-CXXFLAGS	    = -O2 -g -Wall -fmessage-length=0
+CXXFLAGS	    = -std=c++14 -O2 -g -Wall -fmessage-length=0
 LDFLAGS		    =  
 
 SOURCES	     := $(shell mkdir -p $(SRCDIR); find $(SRCDIR) -name '*.cpp')
