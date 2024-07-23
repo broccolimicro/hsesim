@@ -79,6 +79,10 @@ void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> step
 	tokenizer assignment_parser(false);
 	parse_expression::composition::register_syntax(assignment_parser);
 
+	// TODO(edward.bingham) use a minheap and random event times to implement a
+	// discrete event simulator here based upon the set of enabled signals.
+	//vector<pair<uint64_t, > > events;
+
 	int seed = 0;
 	srand(seed);
 	int enabled = 0;
@@ -207,8 +211,12 @@ void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> step
 			for (int i = 0; i < enabled; i++)
 			{
 				printf("(%d) T%d.%d:%s->%s\n", i, sim.loaded[sim.ready[i].first].index, sim.ready[i].second, export_expression(g.transitions[sim.loaded[sim.ready[i].first].index].guard, v).to_string().c_str(), export_composition(g.transitions[sim.loaded[sim.ready[i].first].index].local_action[sim.ready[i].second], v).to_string().c_str());
-				if (!sim.loaded[sim.ready[i].first].stable)
+				if (sim.loaded[sim.ready[i].first].vacuous) {
+					printf("\tvacuous");
+				}
+				if (!sim.loaded[sim.ready[i].first].stable) {
 					printf("\tunstable");
+				}
 				printf("\n");
 			}
 			printf("\n");
@@ -276,6 +284,7 @@ void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> step
 				if (enabled != 0)
 				{
 					int firing = rand()%enabled;
+					bool vacuous = false;
 					if (step < (int)steps.size())
 					{
 						for (firing = 0; firing < (int)sim.ready.size() &&
@@ -287,10 +296,21 @@ void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> step
 							break;
 						}
 					}
-					else
+					else {
+						vacuous = sim.loaded[sim.ready[firing].first].vacuous;
 						steps.push_back(hse::term_index(sim.loaded[sim.ready[firing].first].index, sim.ready[firing].second));
+					}
 
-					printf("%d\tT%d.%d\t%s -> %s\n", step, sim.loaded[sim.ready[firing].first].index, sim.ready[firing].second, export_expression(sim.loaded[sim.ready[firing].first].guard_action, v).to_string().c_str(), export_composition(g.transitions[sim.loaded[sim.ready[firing].first].index].local_action[sim.ready[firing].second], v).to_string().c_str());
+					/*for (auto h = sim.history.begin(); h != sim.history.end(); h++) {
+						printf("%s->%s; ", export_expression(h->first, v).to_string().c_str(), export_composition(g.transitions[h->second.index].local_action[h->second.term], v).to_string().c_str());
+					}
+					printf("\n");*/
+
+					string flags = "";
+					if (vacuous) {
+						flags = " [vacuous]";
+					}
+					printf("%d\tT%d.%d\t%s -> %s%s\n", step, sim.loaded[sim.ready[firing].first].index, sim.ready[firing].second, export_expression(sim.loaded[sim.ready[firing].first].guard_action, v).to_string().c_str(), export_composition(g.transitions[sim.loaded[sim.ready[firing].first].index].local_action[sim.ready[firing].second], v).to_string().c_str(), flags.c_str());
 
 					sim.fire(firing);
 
@@ -318,9 +338,15 @@ void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> step
 						printf("error: deviating from loaded simulation, please clear the simulation to continue\n");
 					else
 					{
+						bool vacuous = sim.loaded[sim.ready[n].first].vacuous;
 						steps.push_back(hse::term_index(sim.loaded[sim.ready[n].first].index, sim.ready[n].second));
 
-						printf("%d\tT%d.%d\t%s -> %s\n", step, sim.loaded[sim.ready[n].first].index, sim.ready[n].second, export_expression(sim.loaded[sim.ready[n].first].guard_action, v).to_string().c_str(), export_composition(g.transitions[sim.loaded[sim.ready[n].first].index].local_action[sim.ready[n].second], v).to_string().c_str());
+						string flags = "";
+						if (vacuous) {
+							flags = " [vacuous]";
+						}
+
+						printf("%d\tT%d.%d\t%s -> %s%s\n", step, sim.loaded[sim.ready[n].first].index, sim.ready[n].second, export_expression(sim.loaded[sim.ready[n].first].guard_action, v).to_string().c_str(), export_composition(g.transitions[sim.loaded[sim.ready[n].first].index].local_action[sim.ready[n].second], v).to_string().c_str(), flags.c_str());
 						
 						sim.fire(n);
 
@@ -422,7 +448,7 @@ int main(int argc, char **argv)
 		else
 		{
 			string filename = argv[i];
-			int dot = filename.find_last_of(".");
+			size_t dot = filename.find_last_of(".");
 			string format = "";
 			if (dot != string::npos)
 				format = filename.substr(dot+1);
