@@ -195,8 +195,19 @@ void real_time(hse::graph &g, ucs::variable_set &v, vector<hse::term_index> step
 			for (int i = 0; i < (int)tokens.size(); i++)
 			{
 				printf("%s {\n", export_composition(sim.encoding.flipped_mask(g.places[sim.tokens[tokens[i][0]].index].mask), v).to_string().c_str());
-				for (int j = 0; j < (int)tokens[i].size(); j++)
-					printf("\t(%d) P%d\t%s\n", tokens[i][j], sim.tokens[tokens[i][j]].index, export_node(hse::iterator(hse::place::type, sim.tokens[tokens[i][j]].index), g, v).c_str());
+				for (int j = 0; j < (int)tokens[i].size(); j++) {
+					int virt = -1;
+					for (int k = 0; k < (int)sim.loaded.size() and virt < 0; k++) {
+						if (find(sim.loaded[k].output_marking.begin(), sim.loaded[k].output_marking.end(), tokens[i][j]) != sim.loaded[k].output_marking.end()) {
+							virt = k;
+						}
+					}
+					if (virt >= 0) {
+						printf("\t\t(%d) %s->%s\tP%d\t%s\n", tokens[i][j], export_expression(sim.tokens[tokens[i][j]].guard, v).to_string().c_str(), export_composition(g.transitions[sim.loaded[virt].index].local_action, v).to_string().c_str(), sim.tokens[tokens[i][j]].index, export_node(hse::iterator(hse::place::type, sim.tokens[tokens[i][j]].index), g, v).c_str());
+					} else {
+						printf("\t(%d) P%d\t%s\n", tokens[i][j], sim.tokens[tokens[i][j]].index, export_node(hse::iterator(hse::place::type, sim.tokens[tokens[i][j]].index), g, v).c_str());
+					}
+				}
 				printf("}\n");
 			}
 		}
