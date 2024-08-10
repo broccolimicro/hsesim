@@ -499,7 +499,7 @@ int main(int argc, char **argv)
 		while (hse_tokens.decrement(__FILE__, __LINE__))
 		{
 			parse_chp::composition syntax(hse_tokens);
-			g.merge(hse::parallel, import_graph(syntax, v, 0, &hse_tokens, true));
+			g.merge(hse::parallel, import_hse(syntax, v, 0, &hse_tokens, true));
 
 			hse_tokens.increment(false);
 			hse_tokens.expect<parse_chp::composition>();
@@ -510,7 +510,7 @@ int main(int argc, char **argv)
 		while (astg_tokens.decrement(__FILE__, __LINE__))
 		{
 			parse_astg::graph syntax(astg_tokens);
-			g.merge(hse::parallel, import_graph(syntax, v, &astg_tokens));
+			g.merge(hse::parallel, import_hse(syntax, v, &astg_tokens));
 
 			astg_tokens.increment(false);
 			astg_tokens.expect<parse_astg::graph>();
